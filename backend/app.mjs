@@ -41,7 +41,10 @@ export function createApp(store, cfg) {
       decisions: await store.all('decisions',{ task_id: id },{ created_at: 1 }), events: await store.all('events',{ task_id: id },{ timestamp: 1 }) };
   }
   const events = workerId => store.all('events', workerId ? { worker_id: workerId } : {}, { timestamp: -1 }, 100);
-  app.get('/health', async (req,res) => { await store.db.command({ ping: 1 }); res.json({ status: 'ok', mode: cfg.mode, database: 'MongoDB replica set' }); });
+  app.get(['/health','/api/health'], async (req,res) => {
+    await store.db.command({ ping: 1 });
+    res.json({ service: 'cloudsphere', pid: process.pid, status: 'ok', mode: cfg.mode, database: 'MongoDB replica set' });
+  });
   app.get('/api/dashboard', op, async (req,res) => res.json(await dashboard()));
   app.post('/api/tasks', op, async (req,res) => {
     const body = taskSchema.parse(req.body);

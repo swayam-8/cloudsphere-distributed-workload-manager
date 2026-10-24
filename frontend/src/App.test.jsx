@@ -15,6 +15,15 @@ test('console rejects invalid authentication with an actionable error', async ()
   expect(sessionStorage.getItem('cloudsphere-token')).toBeNull();
 });
 
+test('a missing proxy route reports backend routing instead of blaming the token', async () => {
+  vi.spyOn(globalThis,'fetch').mockResolvedValue({ ok:false,status:404,json:async()=>{ throw new Error('Not JSON'); } });
+  render(<App/>);
+  fireEvent.change(screen.getByLabelText('Operator token'),{ target:{ value:'test-token-for-proxy-check' } });
+  fireEvent.click(screen.getByRole('button',{ name:'Connect securely' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('CLOUDSPHERE_API_PORT matches');
+  expect(sessionStorage.getItem('cloudsphere-token')).toBeNull();
+});
+
 test('authenticated empty overview shows observed zeroes and worker instructions', async () => {
   setToken('test-operator-token');
   vi.spyOn(globalThis, 'fetch').mockImplementation(async url => ({ ok: true, json: async () => url.endsWith('/dashboard') ? {

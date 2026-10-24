@@ -1,3 +1,19 @@
+export function localWebConfig(env = process.env) {
+  const port = Number(env.CLOUDSPHERE_WEB_PORT || 5173);
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+    throw new Error('CLOUDSPHERE_WEB_PORT must be an integer between 1024 and 65535');
+  }
+  return { port };
+}
+
+export function localApiConfig(env = process.env) {
+  const port = Number(env.CLOUDSPHERE_API_PORT || env.PORT || 8000);
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+    throw new Error('CLOUDSPHERE_API_PORT must be an integer between 1024 and 65535');
+  }
+  return { port, origin: `http://127.0.0.1:${port}`, suffix: port === 8000 ? '' : `-api${port}` };
+}
+
 export function localMongoConfig(env = process.env) {
   const port = Number(env.CLOUDSPHERE_MONGO_PORT || 27017);
   if (!Number.isInteger(port) || port < 1024 || port > 65535) {

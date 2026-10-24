@@ -6,6 +6,7 @@
   "engines": {"node": ">=22"},
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "dev:all": "node scripts/start-local.mjs",
     "start": "node backend/server.mjs",
     "worker": "node worker/agent.mjs",
     "build:jobs": "node scripts/build-job-image.mjs",

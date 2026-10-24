@@ -1,6 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { localMongoConfig } from '../scripts/dev-config.mjs';
+import { localApiConfig, localMongoConfig, localWebConfig } from '../scripts/dev-config.mjs';
+
+test('web port is selectable without silently switching to another project', () => {
+  assert.deepEqual(localWebConfig({}),{ port:5173 });
+  assert.deepEqual(localWebConfig({ CLOUDSPHERE_WEB_PORT:'5199' }),{ port:5199 });
+  assert.throws(() => localWebConfig({ CLOUDSPHERE_WEB_PORT:'invalid' }),/CLOUDSPHERE_WEB_PORT/);
+});
+
+test('API port is shared consistently by API, workers and frontend proxy', () => {
+  assert.deepEqual(localApiConfig({}),{ port:8000,origin:'http://127.0.0.1:8000',suffix:'' });
+  assert.deepEqual(localApiConfig({ CLOUDSPHERE_API_PORT:'8019',PORT:'8000' }),{ port:8019,origin:'http://127.0.0.1:8019',suffix:'-api8019' });
+  assert.equal(localApiConfig({ PORT:'8020' }).port,8020);
+  assert.throws(() => localApiConfig({ CLOUDSPHERE_API_PORT:'invalid' }),/CLOUDSPHERE_API_PORT/);
+});
 
 test('default local configuration preserves existing database, artifacts and worker identities', () => {
   const cfg = localMongoConfig({});

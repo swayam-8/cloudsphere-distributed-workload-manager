@@ -7,6 +7,9 @@ test('operator submits a real Docker benchmark, inspects placement and downloads
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
+  const health=await page.request.get('/api/health');
+  expect(health.ok()).toBe(true);
+  expect((await health.json()).service).toBe('cloudsphere');
   await page.getByLabel('Operator token', { exact: true }).fill(token);
   await page.getByRole('button', { name: 'Connect securely' }).click();
   await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
@@ -22,7 +25,7 @@ test('operator submits a real Docker benchmark, inspects placement and downloads
   await page.getByRole('button', { name: 'Download result' }).click();
   expect((await downloaded).suggestedFilename()).toMatch(/cloudsphere-.*\.zip/);
   await page.getByRole('link', { name: 'Compute', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'worker-a' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^worker-a(?:-api\d+)?$/ }).first()).toBeVisible();
   await page.screenshot({ path: '../.local/console-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Toggle navigation' }).click();

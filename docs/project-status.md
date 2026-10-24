@@ -23,8 +23,8 @@
 
 | Check | Observed outcome |
 |---|---|
-| Backend/integration/container suite | 39 passed; zero failed/skipped, including alternate MongoDB port configuration |
-| React tests | 2 passed |
+| Backend/integration/container suite | 42 passed; zero failed/skipped, including selectable API/web/MongoDB ports and process identity checks |
+| React tests | 3 passed, including actionable proxy-route errors |
 | Vite production build | Passed; bundled Inter fonts and separate chart bundle |
 | Chromium workflow | Real submission, computation, decision inspector, ZIP download and responsive navigation |
 | Real HTTP smoke | Five jobs completed; two simultaneous workers and queued work observed; numerical/CSV/image outputs asserted |
@@ -34,6 +34,7 @@
 | Restart persistence | Tasks/results retained; both workers reauthenticated using saved identities |
 | Docker Compose config | Parsed successfully |
 | Coexisting MongoDB servers | Local startup and real job/result readiness passed on host port 27028 while the original MongoDB remained running on 27017 |
+| One-command launcher | `npm run dev:all` started UI 5199, API 8019, MongoDB 27028 and workers; Chromium submission/result download passed through the matching frontend proxy |
 
 Smoke/recovery JSON evidence and browser screenshots are under ignored `.local/`.
 All numerical/metric displays use actual execution data. No AWS account operations

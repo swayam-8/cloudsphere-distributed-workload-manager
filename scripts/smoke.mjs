@@ -1,11 +1,14 @@
 import fs from 'node:fs/promises';
 import { parse } from 'dotenv';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
+import { localApiConfig } from './dev-config.mjs';
 
-process.chdir(new URL('..',import.meta.url).pathname);
+process.chdir(fileURLToPath(new URL('..',import.meta.url)));
+const api = localApiConfig();
 const token=parse(await fs.readFile('.local/dev.env')).CLOUDSPHERE_OPERATOR_TOKEN;
 async function request(route,body) {
-  const response=await fetch(`http://127.0.0.1:8000/api${route}`,{ method:body === undefined ? 'GET' : 'POST',headers:{ Authorization:`Bearer ${token}`,...(body === undefined ? {} : { 'Content-Type':Buffer.isBuffer(body) ? 'application/octet-stream' : 'application/json' }) },body:body === undefined ? undefined : Buffer.isBuffer(body) ? body : JSON.stringify(body) });
+  const response=await fetch(`${api.origin}/api${route}`,{ method:body === undefined ? 'GET' : 'POST',headers:{ Authorization:`Bearer ${token}`,...(body === undefined ? {} : { 'Content-Type':Buffer.isBuffer(body) ? 'application/octet-stream' : 'application/json' }) },body:body === undefined ? undefined : Buffer.isBuffer(body) ? body : JSON.stringify(body) });
   if(!response.ok) throw new Error(`Smoke request failed: ${response.status}`);
   return response;
 }

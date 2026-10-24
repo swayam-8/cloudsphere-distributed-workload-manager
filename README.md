@@ -11,6 +11,19 @@ See [project status](docs/project-status.md) and the [audit/plan](docs/implement
 
 ## Local setup
 
+If other development projects already occupy the usual ports, run
+`npm run dev:all` after installing dependencies. This starts the entire local
+stack with frontend 5199, backend 8019 and MongoDB 27028. The frontend and workers
+automatically use the selected backend port. Docker Desktop/Engine must be running.
+Stop previously started CloudSphere terminals before running the combined launcher.
+Use the operator token in `.local/dev.env` to log in; keep this file private.
+
+`npm run dev` remains available with the original default ports. You can override
+`CLOUDSPHERE_WEB_PORT`, `CLOUDSPHERE_API_PORT` and `CLOUDSPHERE_MONGO_PORT` in the
+launching shell. Restart Vite after changing the backend port. `/api/health` through
+Vite must identify `service: cloudsphere`; a 404 from another project is not a
+token error. The supervisor now verifies its own backend PID before declaring ready.
+
 Requirements: Linux, Node.js 22+ (tested on 24), npm, curl and a working Docker
 daemon. Allow roughly 2 CPU cores plus MongoDB overhead and 3 GB of disk. Neither
 AWS credentials nor a host Python installation are required.

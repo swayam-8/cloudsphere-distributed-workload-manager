@@ -34,6 +34,15 @@ async function submit(fields={}) { const r=await request('/tasks',{ name:'test j
 async function claim(token) { const r=await request('/worker/claim',{},token); assert.equal(r.status,200,JSON.stringify(r.data)); return r.data; }
 async function completePayload(id,token) { const r=await request(`/worker/attempts/${id}/output`,Buffer.from('result'),token,true); assert.equal(r.status,201); return { output_id:r.data.id,result:{ prime_count:25 },logs:'computed result',exit_code:0 }; }
 
+test('health probes identify the actual CloudSphere process through both paths',async () => {
+  for (const route of ['/health','/api/health']) {
+    const response=await fetch(`${base}${route}`);
+    assert.equal(response.status,200);
+    const health=await response.json();
+    assert.equal(health.service,'cloudsphere'); assert.equal(health.pid,process.pid); assert.equal(health.status,'ok');
+  }
+});
+
 test('operator, enrollment and per-worker authentication stay separate',async () => {
   assert.equal((await request('/tasks',undefined,'')).status,401);
   const a=await enroll(), b=await enroll('worker-b');

@@ -5,13 +5,15 @@ import { spawn, execFileSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parse } from 'dotenv';
 import { MongoClient } from 'mongodb';
-import { localMongoConfig } from './dev-config.mjs';
+import { localApiConfig, localMongoConfig, localWebConfig } from './dev-config.mjs';
 
 process.chdir(path.resolve(import.meta.dirname,'..'));
 await fs.mkdir('.local',{ recursive:true });
 try { await fs.writeFile('.local/dev.env',`CLOUDSPHERE_OPERATOR_TOKEN=${randomBytes(32).toString('base64url')}\nCLOUDSPHERE_ENROLLMENT_TOKEN=${randomBytes(32).toString('base64url')}\n`,{ flag:'wx',mode:0o600 }); } catch(e) { if (e.code !== 'EEXIST') throw e; }
 const mongo = localMongoConfig();
-const env = { ...process.env,...parse(await fs.readFile('.local/dev.env')),CLOUDSPHERE_MODE:'LOCAL',CLOUDSPHERE_MONGODB_URI:mongo.uri,CLOUDSPHERE_DATA_DIR:mongo.dataDir,CLOUDSPHERE_API_URL:'http://127.0.0.1:8000' };
+const api = localApiConfig();
+const web = localWebConfig();
+const env = { ...process.env,...parse(await fs.readFile('.local/dev.env')),PORT:String(api.port),HOST:'127.0.0.1',CLOUDSPHERE_MODE:'LOCAL',CLOUDSPHERE_MONGODB_URI:mongo.uri,CLOUDSPHERE_DATA_DIR:mongo.dataDir,CLOUDSPHERE_API_URL:api.origin };
 // Preserve Docker Desktop's existing context, credentials and CLI plugins.
 const dockerEnv = env;
 try { execFileSync('docker',['info','--format','{{.OSType}}'],{ env:dockerEnv,stdio:['ignore','ignore','inherit'] }); }
@@ -51,9 +53,20 @@ async function stop() {
   for (const h of handles) await h.close(); process.exit(0);
 }
 for (const sig of ['SIGINT','SIGTERM']) process.on(sig,stop);
-await start('api',process.execPath,['backend/server.mjs']);
-for (let i=0;i<60;i++) { try { const r=await fetch('http://127.0.0.1:8000/health'); if (r.ok) break; } catch {} if(i===59) throw new Error('API failed readiness; inspect .local/api.log'); await sleep(300); }
-for (const name of ['worker-a','worker-b']) await start(name,process.execPath,['worker/agent.mjs','--name',name,'--state-dir',mongo.workerState]);
-if (!process.argv.includes('--no-frontend')) await start('frontend',process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','5173','--strictPort'],path.resolve('frontend'));
-console.log(`MERN services started: API port 8000, MongoDB port ${mongo.port}, ${process.argv.includes('--no-frontend') ? 'frontend managed separately' : 'console port 5173'}, two Docker workers. Private credential: .local/dev.env`);
+const apiProcess = await start('api',process.execPath,['backend/server.mjs']);
+for (let i=0;i<60;i++) {
+  if (apiProcess.exitCode !== null) throw new Error(`CloudSphere API exited before readiness. Inspect .local/api.log; port ${api.port} may already be occupied. Set CLOUDSPHERE_API_PORT to a free port.`);
+  try {
+    const response = await fetch(`${api.origin}/health`, { signal: AbortSignal.timeout(2000) });
+    if (response.ok) {
+      const health = await response.json();
+      if (health.service === 'cloudsphere' && health.pid === apiProcess.pid) break;
+    }
+  } catch {}
+  if(i===59) throw new Error('CloudSphere API failed readiness; inspect .local/api.log');
+  await sleep(300);
+}
+for (const name of ['worker-a','worker-b']) await start(name,process.execPath,['worker/agent.mjs','--name',`${name}${api.suffix}`,'--state-dir',`${mongo.workerState}${api.suffix}`]);
+if (!process.argv.includes('--no-frontend')) await start('frontend',process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',String(web.port),'--strictPort'],path.resolve('frontend'));
+console.log(`MERN services started: API port ${api.port}, MongoDB port ${mongo.port}, ${process.argv.includes('--no-frontend') ? 'frontend managed separately' : `console port ${web.port}`}, two Docker workers. Private credential: .local/dev.env`);
 setInterval(() => { if (!stopping && processes.some(p => p.exitCode !== null)) { console.error('A service exited; inspect .local/*.log'); stop(); } },1000);

@@ -12,7 +12,10 @@ export async function api(path, options = {}) {
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(typeof error.detail === 'string' ? error.detail : `Request failed (${response.status}). Check your inputs and operator token.`);
+    const hint = response.status === 401 ? 'Operator authentication required. Check the operator token.'
+      : response.status === 404 ? `CloudSphere API route /api${path.split('?')[0]} was not found. Verify CLOUDSPHERE_API_PORT matches in the frontend and backend terminals, then restart the frontend.`
+      : `API request failed (${response.status}). Check backend connectivity and server logs.`;
+    throw new Error(typeof error.detail === 'string' ? error.detail : hint);
   }
   return options.download ? response.blob() : response.json();
 }
