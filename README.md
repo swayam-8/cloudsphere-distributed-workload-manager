@@ -131,6 +131,24 @@ private networking for a shared or AWS deployment.
 
 ## Run actual workloads
 
+1. Choose **New workload** in the sidebar or **Upload & run** on Overview.
+2. Choose **CSV processing** (the default), **Image processing**, or **CPU benchmark**.
+   CSV/images show a drag-and-drop upload area with a **Browse files** button.
+   CSV uploads show the first rows and column names. A sample CSV can be downloaded
+   from this screen. CPU benchmarks do not require an input file.
+3. Select **Continue**, name the workload and choose processing options. For a CSV,
+   choose the grouping column and the numeric column to sum, or count rows only.
+4. Review the input, operation and resources, then **Submit workload**. Upload
+   progress comes from actual transferred bytes. A failed submission can reuse
+   an input that was already uploaded successfully.
+5. Follow the workload page from queued to completed. It shows the original input
+   filename, result summary, attempts and scheduling decision. **Download results**
+   collects the ZIP; logs and raw metadata remain in expandable sections.
+
+The upload screen in local mode:
+
+![CSV upload and processing workflow](docs/images/upload-workload.png)
+
 - **Prime benchmark:** choose limit 100; the real output must show 25 primes with
   sum 1060. Larger bounded limits exercise CPU contention.
 - **CSV aggregation:** upload `examples/sales.csv`, group `category`, numeric

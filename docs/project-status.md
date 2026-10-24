@@ -23,10 +23,10 @@
 
 | Check | Observed outcome |
 |---|---|
-| Backend/integration/container suite | 51 passed; zero failed/skipped, including bootstrap caching, proxy-independent loopback HTTP, process cleanup and port collision checks |
-| React tests | 3 passed, including actionable proxy-route errors |
+| Backend/integration/container suite | 52 passed; zero failed/skipped, including input artifact metadata, bootstrap caching, proxy-independent HTTP and process cleanup |
+| React tests | 9 passed, including upload discovery, file validation/preview, column selection, failed uploads and submission retries |
 | Vite production build | Passed; bundled Inter fonts and separate chart bundle |
-| Chromium workflow | Real submission, computation, decision inspector, ZIP download and responsive navigation |
+| Chromium workflows | 3 passed: actual CSV upload/aggregation, image upload/resize and CPU benchmark, with real ZIP downloads and mobile navigation/overflow checks |
 | Real HTTP smoke | Five jobs completed; two simultaneous workers and queued work observed; numerical/CSV/image outputs asserted |
 | Real daemon recovery | Worker stopped during computation; attempts LOST → COMPLETED on another worker; original daemon restored |
 | Known recovery computation | Primes through 5,000,000: 348,513 |

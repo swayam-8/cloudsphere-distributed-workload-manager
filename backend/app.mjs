@@ -37,7 +37,10 @@ export function createApp(store, cfg) {
       offline_workers: workers.filter(w => w.state !== 'HEALTHY').length, recent_tasks: tasks.sort((a,b) => b.created_at.localeCompare(a.created_at)).slice(0,6), timestamp: now() };
   }
   async function taskDetail(id) {
-    return { ...await need(store,'tasks',id), attempts: await store.all('attempts',{ task_id: id },{ number: 1 }),
+    const task=await need(store,'tasks',id);
+    return { ...task, input_artifact:task.input_id ? await store.one('artifacts',task.input_id) : null,
+      output_artifact:task.output_id ? await store.one('artifacts',task.output_id) : null,
+      attempts: await store.all('attempts',{ task_id: id },{ number: 1 }),
       decisions: await store.all('decisions',{ task_id: id },{ created_at: 1 }), events: await store.all('events',{ task_id: id },{ timestamp: 1 }) };
   }
   const events = workerId => store.all('events', workerId ? { worker_id: workerId } : {}, { timestamp: -1 }, 100);

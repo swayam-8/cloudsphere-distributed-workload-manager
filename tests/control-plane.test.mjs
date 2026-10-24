@@ -125,6 +125,18 @@ test('uploads enforce type, nonempty and streaming byte limits',async () => {
   assert.equal((await request('/uploads?filename=empty.csv',Buffer.alloc(0),op,true)).status,422);
   assert.equal((await request('/uploads?filename=large.csv',Buffer.alloc(10*1024*1024+1),op,true)).status,413);
 });
+test('workload details expose the actual input filename and size for the results interface',async()=>{
+  const input=Buffer.from('category,amount\nbooks,12.5\n');
+  const artifact=await request('/uploads?filename=sales.csv',input,op,true);
+  assert.equal(artifact.status,201);
+  const task=await submit({name:'Sales file metadata',kind:'csv',input_id:artifact.data.id});
+  const detail=(await request(`/tasks/${task.id}`)).data;
+  assert.equal(detail.input_artifact.filename,'sales.csv');
+  assert.equal(detail.input_artifact.size,input.length);
+  assert.equal(detail.input_artifact.id,artifact.data.id);
+  assert.equal(detail.output_artifact,null);
+});
+
 test('local mode never invents AWS state or metrics',async () => {
   assert.equal((await request('/cloud/status')).data.connected,false);
   assert.deepEqual((await request('/cloud/instances')).data,[]);

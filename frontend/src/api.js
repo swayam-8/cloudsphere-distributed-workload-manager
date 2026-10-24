@@ -26,3 +26,24 @@ export function saveBlob(blob, name) {
   link.href = href; link.download = name; link.click();
   setTimeout(() => URL.revokeObjectURL(href), 1000);
 }
+
+export function uploadFile(file,onProgress,signal) {
+  return new Promise((resolve,reject)=>{
+    const request=new XMLHttpRequest();
+    request.open('POST',`/api/uploads?filename=${encodeURIComponent(file.name)}`);
+    request.setRequestHeader('Authorization',`Bearer ${token}`);
+    request.setRequestHeader('Content-Type','application/octet-stream');
+    request.timeout=120000;
+    request.upload.onprogress=e=>{if(e.lengthComputable)onProgress(Math.round(e.loaded/e.total*100));};
+    request.onload=()=>{
+      let result;try{result=JSON.parse(request.responseText);}catch{reject(new Error('The upload service returned an invalid response.'));return;}
+      if(request.status>=200 && request.status<300)resolve(result);
+      else reject(new Error(typeof result.detail==='string'?result.detail:`Upload failed (${request.status}). Please try again.`));
+    };
+    request.onerror=()=>reject(new Error('The file could not be uploaded. Check your connection and try again.'));
+    request.ontimeout=()=>reject(new Error('The upload timed out. Please try again.'));
+    request.onabort=()=>reject(new DOMException('Upload cancelled','AbortError'));
+    signal?.addEventListener('abort',()=>request.abort(),{once:true});
+    request.send(file);
+  });
+}
