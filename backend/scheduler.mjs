@@ -30,11 +30,12 @@ export async function reap(db, cfg) {
 }
 export async function schedule(db, cfg) {
   await reap(db, cfg);
-  const { algorithm } = await settings(db), workers = await db.all('workers', {}, { name: 1 });
+  const defaultAlgorithm = (await settings(db)).algorithm, workers = await db.all('workers', {}, { name: 1 });
   const queue = await db.all('tasks', { status: 'QUEUED', available_at: { $lte: now() } });
   const age = t => t.priority + Math.floor((Date.now() - Date.parse(t.created_at)) / 60000);
   queue.sort((a,b) => age(b) - age(a) || a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
   for (const task of queue) {
+    const algorithm=task.scheduling_algorithm || defaultAlgorithm;
     const candidates = [];
     for (const worker of workers) {
       const reserved = await reservations(db, worker.id), free_cpu = worker.cpu - reserved.cpu, free_memory_mb = worker.memory_mb - reserved.memory_mb;

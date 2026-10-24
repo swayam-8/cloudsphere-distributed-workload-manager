@@ -6,13 +6,19 @@
 - Persistent task queue, attempts, worker identities, measured metrics, events,
   artifacts and scheduling decisions. Atomic MongoDB transactions and reservations.
 - Two outbound-polling authenticated Node workers; real restricted Docker jobs
-  for prime computation, CSV grouping/aggregation and PNG/JPEG batch resizing.
+  for prime computation, CSV quality/cleaning/grouped statistics and PNG/JPEG batch resizing.
 - Round robin, least loaded and resource-aware best-fit placement with priority
   aging, eligibility reasons and a persisted decision inspector.
 - Heartbeats, execution leases, retry limits/backoff, cancellation, stale-attempt
   fencing, idempotent completion and supervised local startup.
 - Overview, workload list/search/filter/pagination, validated creation, workload
   details/results/logs/attempts, compute/worker detail, monitoring, settings and 404.
+- CSV input/output guide with sales, marks, expenses and messy-data samples;
+  explicit cleaning rules, quality charts/profiles, IQR flags and downloadable
+  cleaned/aggregate/outlier CSVs, standalone HTML and JSON reports with input SHA-256.
+- Persistent Scheduling lab batches with pinned policies, actual measurements,
+  worker snapshots, comparisons with condition checks and per-job CSV export.
+- Source-fingerprinted job images automatically rebuilt after kernel updates.
 - Private local artifacts; AWS SDK v3 adapters for encrypted private S3 transfers,
   tagged EC2 discovery and actual CloudWatch CPU data. AWS adapters are not proof
   of live cloud integration.
@@ -23,10 +29,10 @@
 
 | Check | Observed outcome |
 |---|---|
-| Backend/integration/container suite | 52 passed; zero failed/skipped, including input artifact metadata, bootstrap caching, proxy-independent HTTP and process cleanup |
-| React tests | 9 passed, including upload discovery, file validation/preview, column selection, failed uploads and submission retries |
+| Backend/integration/container suite | 62 passed; zero failed/skipped, including real CSV cleaning/report contents, source-workload reuse, policy isolation, measured experiment metrics, validation, comparison and cancellation |
+| React tests | 10 passed, including sample input/output guidance, matching cleaning rules, upload discovery, file preview, column selection and upload/submission retries |
 | Vite production build | Passed; bundled Inter fonts and separate chart bundle |
-| Chromium workflows | 3 passed: actual CSV upload/aggregation, image upload/resize and CPU benchmark, with real ZIP downloads and mobile navigation/overflow checks |
+| Chromium workflows | 5 passed: actual CSV upload/aggregation, messy-data cleaning and report, image resize, CPU benchmark and two-policy experiment comparison/export, with real downloads and mobile overflow checks |
 | Real HTTP smoke | Five jobs completed; two simultaneous workers and queued work observed; numerical/CSV/image outputs asserted |
 | Real daemon recovery | Worker stopped during computation; attempts LOST → COMPLETED on another worker; original daemon restored |
 | Known recovery computation | Primes through 5,000,000: 348,513 |
@@ -50,9 +56,9 @@ or restoration in a new cloud task.
 
 Live two-instance AWS deployment and verification; authenticated shared MongoDB
 deployment; full multi-user authorization/credential lifecycle; artifact/metric
-retention; large-scale and multi-node failover/load tests; Experiment Lab;
-deadline/cost-aware policy; cost estimates; scaling recommendations; CSV experiment
-export; OpenAPI generation; broader browser/accessibility coverage.
+retention; large-scale and multi-node failover/load tests;
+deadline/cost-aware policy; cost estimates; scaling recommendations;
+OpenAPI generation; broader browser/accessibility coverage.
 
 The UI does not pretend these modules are complete. Next milestone: operator-
 approved AWS deployment and genuine S3/EC2/CloudWatch execution evidence using the

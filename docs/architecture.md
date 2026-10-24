@@ -16,7 +16,7 @@ flowchart TD
 ```
 
 MongoDB stores tasks, workers, attempts, decisions, measurements, events,
-settings and artifact metadata. UUIDs identify records. Compound unique indexes
+settings, experiments and artifact metadata. UUIDs identify records. Compound unique indexes
 prevent duplicate worker names/tokens and duplicate attempt numbers.
 `Store.connect` initializes collections/indexes idempotently. See the initial
 schema in `migrations/001-initial.md`; future incompatible changes require
@@ -40,3 +40,15 @@ The console labels AWS as disconnected in LOCAL mode.
 Vite proxies `/api` to Express. Deploy static assets and API behind one HTTPS
 origin; do not use Vite as a production server. No broker or inbound worker port
 is required.
+
+CSV analysis runs inside the same restricted Docker execution path. The input
+fingerprint, explicit cleaning rules and bounded UI metadata accompany private
+result ZIPs containing full outputs. Source fingerprints on the job image make
+local startup rebuild stale kernels after an update.
+
+Experiment records hold the job IDs, policy, input identity, configuration and
+initial worker capacities. Tasks in a batch pin `scheduling_algorithm`; ordinary
+tasks continue using global settings. Summaries derive from persisted task/attempt
+timestamps and host metrics. Experiment creation and cancellation use the same
+transactional dispatch lock as ordinary scheduling. The background maintenance
+loop settles terminal batches. See `migrations/002-analytics-experiments.md`.

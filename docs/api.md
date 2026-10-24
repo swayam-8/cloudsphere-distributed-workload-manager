@@ -32,7 +32,9 @@ an appropriate 4xx/5xx status; clients must inspect HTTP status.
 Task creation fields: `name`, `kind` (`cpu`, `csv`, `images`), `parameters`, `cpu`
 (0.25–64), `memory_mb` (64–65536), `priority` (0–2), `timeout_seconds` (1–3600),
 `max_retries` (0–5), optional uploaded `input_id` (required for CSV/images).
-CPU parameters: `limit` 100–20000000. CSV: optional `group_by`, `value_column`.
+CPU parameters: `limit` 100–20000000. CSV: optional `group_by`, `value_column`, `trim_whitespace` (default true),
+`deduplicate` / `drop_missing` (false), `invalid_numeric` (`fail` or `skip`; default
+`fail`), `detect_outliers` (true).
 Images: `width` 16–2048. Unknown fields are rejected. Lists accept `q`, `status`,
 `page` and `page_size` (maximum 100), ordered newest first.
 
@@ -41,6 +43,23 @@ an individual worker token. Heartbeat/claim/progress/input/output/complete/fail
 use that individual token; see [worker protocol](worker-protocol.md). Binary input
 and output routes use `application/octet-stream`; all protocol metadata is JSON.
 
-Experiment, deadline and cost APIs are not implemented in this milestone. This
+Experiment routes (operator authentication required):
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST / GET | /api/experiments | Start a bounded real batch / list the 50 most recent summaries |
+| GET | /api/experiments/:id | Persisted configuration, tasks, attempts, measurements and summary |
+| POST | /api/experiments/:id/cancel | Cancel only this batch's nonterminal jobs |
+| GET | /api/experiments/:id/export | Authenticated per-job CSV with actual timestamps |
+| GET | /api/experiments/compare?ids=id1,id2 | Compare 2–4 finished runs and disclose differing conditions |
+
+Creation requires `name`, `algorithm` (same three scheduling policies); optional
+`job_count` 2–12 (default 6), `mix` (`quick`, `mixed`, `repeat_task`; default `quick`),
+and `source_task_id` (required for `repeat_task`). One active lab batch at a time
+(409 if active); at least two fresh eligible workers (422 otherwise).
+Comparisons return `comparable`, `reasons`, `caveat`, `runs`; incomplete runs
+cannot be compared (409). See [metric definitions](experiment-methodology.md).
+
+Deadline and cost APIs are not implemented in this milestone. This
 contract replaces the Python/FastAPI-specific API documentation assumption in
 the original specification; OpenAPI/Swagger generation is future documentation work.

@@ -94,3 +94,48 @@ test('image upload runs a real resize job with the configured output size',async
   await expect(page.locator('.result-stats').getByText('1',{exact:true})).toBeVisible();
   await expect(page.locator('.result-stats').getByText('64 × 64 px',{exact:true})).toBeVisible();
 });
+
+test('the documented messy sample produces actual quality statistics, grouped output and an explained download',async({page})=>{
+  await login(page);await page.goto('/workloads/new');
+  await expect(page.getByRole('heading',{name:'Your CSV. A specific question. A usable result.'})).toBeVisible();
+  const card=page.locator('.dataset-examples article').filter({has:page.getByRole('heading',{name:'Clean a messy dataset'})});
+  await card.getByRole('button',{name:'Use sample'}).click();
+  await expect(page.getByRole('columnheader',{name:'order_id',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await expect(page.getByLabel('Remove exact duplicate rows')).toBeChecked();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await finish(page,'Clean a messy dataset');
+  await expect(page.getByRole('heading',{name:'Data quality report',exact:true})).toBeVisible();
+  await expect(page.getByText('Removed: 3 rows',{exact:true})).toBeVisible();
+  const aggregate=page.locator('section.panel').filter({has:page.getByRole('heading',{name:'amount by category',exact:true})});
+  await expect(aggregate.getByRole('cell',{name:'10,300',exact:true})).toBeVisible();
+  await expect(page.getByText('Statistical outliers: 1',{exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Inside your results ZIP',exact:true})).toBeVisible();
+  await page.screenshot({path:'../.local/data-quality-report.png',fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('scheduling lab executes two real policy batches and compares measured results',async({page})=>{
+  test.setTimeout(150000);
+  await login(page);await page.getByRole('link',{name:'Scheduling lab',exact:true}).click();
+  for(const [algorithm,name] of [['round_robin','Browser RR trial'],['least_loaded','Browser LL trial']]) {
+    await page.getByLabel('Experiment name',{exact:true}).fill(name);
+    await page.getByLabel('Jobs in batch').fill('2');
+    await page.getByRole('combobox',{name:'Scheduling policy',exact:true}).selectOption(algorithm);
+    await page.getByRole('button',{name:'Start real batch'}).click();
+    await expect(page.getByRole('heading',{name,exact:true})).toBeVisible();
+    await expect(page.getByText('2 / 2 completed · 0 failed · 0 cancelled',{exact:true})).toBeVisible({timeout:65000});
+    await expect(page.locator('.lab-measures').getByText('Batch time')).toBeVisible();
+    const event=page.waitForEvent('download');await page.getByRole('button',{name:'Export measurements'}).click();
+    const download=await event;expect(download.suggestedFilename()).toMatch(/experiment.*\.csv/);
+    await page.getByRole('link',{name:'Scheduling lab',exact:true}).last().click();
+  }
+  await page.getByLabel('Select Browser RR trial',{exact:true}).first().check();
+  await page.getByLabel('Select Browser LL trial',{exact:true}).first().check();
+  await page.getByRole('button',{name:'Compare selected'}).click();
+  await expect(page.getByRole('heading',{name:'Policy comparison',exact:true})).toBeVisible();
+  await expect(page.getByText(/Matching conditions do not control host background load/)).toBeVisible();
+  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.screenshot({path:'../.local/scheduling-comparison.png',fullPage:true});
+});

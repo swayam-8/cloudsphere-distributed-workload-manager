@@ -35,7 +35,7 @@ That single command:
    launch, missing dependencies, or dependency-file/platform/Node-major changes.
    Later runs reuse the completed installation.
 2. Preserves your existing Docker Desktop context and verifies its Linux engine.
-3. Builds the approved job image if missing. Pillow is checked against the
+3. Builds the approved job image if missing or its source fingerprint changed. Pillow is checked against the
    committed SHA-256 lock and installed offline inside the image.
 4. Starts/reuses the project-owned local MongoDB replica set and persistent volume.
 5. Starts Express and verifies a real HTTP health response from that exact process.
@@ -145,14 +145,50 @@ private networking for a shared or AWS deployment.
    filename, result summary, attempts and scheduling decision. **Download results**
    collects the ZIP; logs and raw metadata remain in expandable sections.
 
+### What data goes in, and what comes out?
+
+| Upload | User chooses | Output for the included sample |
+|---|---|---|
+| Sales: `date, product, region, amount` | Group `region`, analyse `amount` | North total 3,000 / average 1,500; South total 500. |
+| Marks: `student, subject, marks` | Group `subject`, analyse `marks` | Math average 80, minimum 70, maximum 90. |
+| Expenses: `date, category, amount` | Group `category`, analyse `amount` | Travel total 1,000; Supplies total 200. |
+| A supported CSV with only text | Group a column; leave numeric empty | Counts per group, missing/duplicate checks and column profiles. |
+| Messy sales sample | Enable duplicate/incomplete removal and skip invalid amounts | 7 rows → 4 retained; Books total 10,300; one IQR outlier flagged and kept. |
+
+Choose **Use sample** on the upload screen to load a dataset and its matching
+settings, or upload your own CSV with different column names. Select a numeric
+column for sum, mean, min and max. Leave grouping empty for one overall summary.
+The app does not infer the business meaning of arbitrary columns.
+
+The results page includes quality measures, grouped charts/tables and column
+profiles. **Download results** produces `cleaned.csv`, `aggregates.csv`,
+`outliers.csv`, `report.html`, `quality.json` and `result.json`. Cleaning is
+explicit, and the report records the chosen rules and original file SHA-256.
+Statistical outliers are kept and are not labelled as fraud or proven errors.
+See [input/output examples and validation rules](docs/data-workflows.md).
+
+### Compare real scheduling policies
+
+Open **Scheduling lab**, select a policy and a batch of 2–12 jobs, then run it
+again under another policy with the same settings. Use built-in CPU mixes or
+repeat an existing workload with its same input and processing options. Compare
+queue wait, median/p95 completion, batch time, throughput, retries and worker
+assignments; export actual per-job measurements to CSV. At least two healthy
+workers are required. Conditions that differ or include interfering workloads
+are disclosed. See [methodology and metric definitions](docs/experiment-methodology.md).
+
 The upload screen in local mode:
 
-![CSV upload and processing workflow](docs/images/upload-workload.png)
+![CSV upload, sample inputs and expected outputs](docs/images/upload-workload.png)
+
+A completed messy-data analysis (real local execution):
+
+![Data quality, grouped statistics and explained result files](docs/images/data-quality-report.png)
 
 - **Prime benchmark:** choose limit 100; the real output must show 25 primes with
   sum 1060. Larger bounded limits exercise CPU contention.
 - **CSV aggregation:** upload `examples/sales.csv`, group `category`, numeric
-  column `amount`. The ZIP contains grouped counts/sums and a JSON report.
+  column `amount`. The ZIP contains cleaned data, grouped statistics, flagged outliers and HTML/JSON reports.
 - **Images:** upload `examples/sample.png` and width 64; the 800 x 400 input becomes
   a 64 x 32 thumbnail and manifest. Bounded ZIPs of PNG/JPEG files are supported.
 
@@ -229,5 +265,5 @@ credentials in React or assume EC2 can reach laptop localhost.
 - [Architecture](docs/architecture.md) and [REST API](docs/api.md)
 - [Scheduling formulas](docs/scheduling-algorithms.md) and [worker protocol](docs/worker-protocol.md)
 - [Security](docs/security.md), [AWS deployment](docs/aws-setup.md) and [demo script](docs/demo-script.md)
-- [Experiment methodology](docs/experiment-methodology.md): Experiment Lab, cost/deadline
-  scoring and scaling recommendations remain future milestones.
+- [Data workflows](docs/data-workflows.md): supported inputs, sample answers and downloadable outputs.
+- [Experiment methodology](docs/experiment-methodology.md): real policy comparisons, metric definitions and limitations. Cost/deadline scoring and scaling recommendations remain future milestones.

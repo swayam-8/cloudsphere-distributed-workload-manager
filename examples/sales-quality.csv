@@ -1,0 +1,8 @@
+order_id,category,amount,region
+1,Books,100,North
+2,Books,110,South
+3,Books,90,North
+4,Books,10000,North
+4,Books,10000,North
+5,Hardware,50,
+6,Hardware,not-a-number,West

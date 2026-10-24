@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { jobFingerprint } from './job-image.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const lock = JSON.parse(await fs.readFile(path.join(root,'jobs/wheels.lock.json'),'utf8'));
@@ -21,4 +22,6 @@ if (!verified) {
 await fs.writeFile(path.join(context,'requirements.txt'),`pillow==${lock.pillow} --hash=sha256:${wheel.sha256}\n`);
 await fs.copyFile(path.join(root,'jobs/Dockerfile'),path.join(context,'Dockerfile'));
 await fs.copyFile(path.join(root,'jobs/run.py'),path.join(context,'run.py'));
-execFileSync('docker',['build','--network=none','-t','cloudsphere-job:dev',context],{ stdio:'inherit',env:process.env });
+await fs.copyFile(path.join(root,'jobs/analytics.py'),path.join(context,'analytics.py'));
+const fingerprint=await jobFingerprint(root);
+execFileSync('docker',['build','--network=none','--label',`com.cloudsphere.job-source=${fingerprint}`,'-t','cloudsphere-job:dev',context],{ stdio:'inherit',env:process.env });

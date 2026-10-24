@@ -24,7 +24,7 @@ export class Store extends View {
     // Transactions are required. A standalone MongoDB cannot safely run this scheduler.
     const hello = await db.admin().command({ hello: 1 });
     if (!hello.setName && hello.msg !== 'isdbgrid') { await client.close(); throw new Error('MongoDB must be a replica set or sharded cluster; use npm run dev'); }
-    for (const name of ['tasks','workers','attempts','decisions','metrics','events','settings','artifacts','locks']) {
+    for (const name of ['tasks','workers','attempts','decisions','metrics','events','settings','artifacts','locks','experiments']) {
       if (!(await db.listCollections({ name }).toArray()).length) await db.createCollection(name);
     }
     await db.collection('workers').createIndex({ name: 1 }, { unique: true });
@@ -34,6 +34,7 @@ export class Store extends View {
     await db.collection('tasks').createIndex({ status: 1, created_at: -1 });
     await db.collection('metrics').createIndex({ worker_id: 1, timestamp: -1 });
     await db.collection('decisions').createIndex({ task_id: 1, created_at: -1 });
+    await db.collection('experiments').createIndex({ status:1,created_at:-1 });
     await db.collection('locks').updateOne({ _id: 'dispatch' }, { $setOnInsert: { revision: 0 } }, { upsert: true });
     return store;
   }

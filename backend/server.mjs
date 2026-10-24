@@ -3,6 +3,7 @@ import { Store } from './store.mjs';
 import { createApp } from './app.mjs';
 import { reap } from './scheduler.mjs';
 import { localApiConfig } from '../scripts/dev-config.mjs';
+import { settleExperiments } from './experiments.mjs';
 
 const cfg = config(), store = await Store.connect(cfg.mongoUrl), app = createApp(store,cfg);
 const api = localApiConfig();
@@ -13,7 +14,7 @@ const server = app.listen(api.port,process.env.HOST || '127.0.0.1',() => {
 let busy = false;
 const timer = setInterval(async () => {
   if (busy) return; busy = true;
-  try { await store.transaction(db => reap(db,cfg)); } catch(e) { console.error('Lease maintenance failed:',e.name); } finally { busy = false; }
+  try { await store.transaction(async db => {await reap(db,cfg);await settleExperiments(db);}); } catch(e) { console.error('Lease maintenance failed:',e.name); } finally { busy = false; }
 },1000);
 let stopping=false;
 async function stop() { if(stopping)return;stopping=true;clearInterval(timer);server.close();await store.close();process.exit(0); }

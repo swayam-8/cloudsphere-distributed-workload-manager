@@ -59,3 +59,21 @@ test('a failed task submission reuses the completed upload when retried',async()
   await screen.findByText('Submitted workload details');
   expect(uploadFile).toHaveBeenCalledTimes(1);
 });
+
+test('a practical sample explains its output and submits the corresponding cleaning rules',async()=>{
+  open();expect(screen.getByText(/North: 2 orders, total 3,000/)).toBeInTheDocument();
+  const card=screen.getByRole('heading',{name:'Clean a messy dataset'}).closest('article');
+  fireEvent.click(card.querySelector('button'));
+  await screen.findByRole('columnheader',{name:'order_id'});
+  fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+  expect(screen.getByLabelText(/Group rows by/)).toHaveValue('category');
+  expect(screen.getByLabelText(/Calculate the sum of/)).toHaveValue('amount');
+  expect(screen.getByLabelText('Remove exact duplicate rows')).toBeChecked();
+  expect(screen.getByLabelText('Remove rows with any empty cell')).toBeChecked();
+  expect(screen.getByLabelText(/If the numeric column/)).toHaveValue('skip');
+  fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+  fireEvent.click(screen.getByRole('button',{name:'Submit workload'}));
+  await screen.findByText('Submitted workload details');
+  const call=api.mock.calls.find(([path,options])=>path==='/tasks'&&options?.method==='POST');
+  expect(JSON.parse(call[1].body).parameters).toMatchObject({group_by:'category',value_column:'amount',deduplicate:true,drop_missing:true,invalid_numeric:'skip'});
+});

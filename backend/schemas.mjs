@@ -2,7 +2,9 @@ import { z } from 'zod';
 
 const parameters = {
   cpu: z.strictObject({ limit: z.number().int().min(100).max(20000000).default(100000) }),
-  csv: z.strictObject({ group_by: z.string().max(80).default(''), value_column: z.string().max(80).default('') }),
+  csv: z.strictObject({ group_by: z.string().max(80).default(''), value_column: z.string().max(80).default(''),
+    trim_whitespace:z.boolean().default(true),deduplicate:z.boolean().default(false),drop_missing:z.boolean().default(false),
+    invalid_numeric:z.enum(['fail','skip']).default('fail'),detect_outliers:z.boolean().default(true) }),
   images: z.strictObject({ width: z.number().int().min(16).max(2048).default(256) }),
 };
 export const taskSchema = z.strictObject({
@@ -26,3 +28,8 @@ export const progressSchema = z.strictObject({ logs: z.string().max(16000).defau
 export const completionSchema = progressSchema.extend({ result: z.record(z.string(), z.unknown()), output_id: z.string().uuid(), exit_code: z.literal(0).default(0) });
 export const failureSchema = progressSchema.extend({ error: z.string().min(1).max(2000), exit_code: z.number().int().default(1) });
 export const settingsSchema = z.strictObject({ algorithm: z.enum(['round_robin','least_loaded','resource_aware']) });
+export const experimentSchema = z.strictObject({
+  name:z.string().trim().min(1).max(100),algorithm:z.enum(['round_robin','least_loaded','resource_aware']),
+  mix:z.enum(['quick','mixed','repeat_task']).default('quick'),job_count:z.number().int().min(2).max(12).default(6),
+  source_task_id:z.string().uuid().optional(),
+}).superRefine((v,ctx)=>{if(v.mix==='repeat_task'&&!v.source_task_id)ctx.addIssue({code:'custom',message:'Choose a source workload for a repeated-task experiment'});});

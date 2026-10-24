@@ -19,7 +19,7 @@ before(async () => {
   base = `http://127.0.0.1:${server.address().port}`;
 });
 beforeEach(async () => {
-  for (const name of ['tasks','workers','attempts','decisions','metrics','events','settings','artifacts']) await store.db.collection(name).deleteMany({});
+  for (const name of ['tasks','workers','attempts','decisions','metrics','events','settings','artifacts','experiments']) await store.db.collection(name).deleteMany({});
   cfg.retryBackoff = 0;
 });
 after(async () => { if (server) await new Promise(resolve => server.close(resolve)); if(store) { await store.db.dropDatabase(); await store.close(); } if(cfg) await fs.rm(cfg.dataDir,{ recursive:true,force:true }); });
@@ -141,4 +141,65 @@ test('local mode never invents AWS state or metrics',async () => {
   assert.equal((await request('/cloud/status')).data.connected,false);
   assert.deepEqual((await request('/cloud/instances')).data,[]);
   assert.equal((await request('/cloud/instances/i-unknown/metrics')).status,404);
+});
+
+test('experiment batches pin task policy, preserve global policy, enforce isolation and cancel cleanly',async()=>{
+  const a=await enroll(),b=await enroll('worker-b');
+  const started=await request('/experiments',{name:'Policy fixture',algorithm:'round_robin',mix:'quick',job_count:3});
+  assert.equal(started.status,201,JSON.stringify(started.data));
+  const run=started.data;assert.equal(run.task_ids.length,3);assert.equal(run.workers.length,2);
+  assert.equal('token_hash' in run.workers[0],false);
+  assert.equal((await request('/settings')).data.algorithm,'resource_aware');
+  assert.equal((await request('/experiments',{name:'Overlapping',algorithm:'least_loaded',job_count:2})).status,409);
+  const job=await claim(a.token);assert.equal(job.task.scheduling_algorithm,'round_robin');
+  const decision=(await request(`/tasks/${job.task.id}/decision`)).data.at(-1);assert.equal(decision.algorithm,'round_robin');
+  const stopped=await request(`/experiments/${run.id}/cancel`,{});assert.equal(stopped.status,200);
+  assert.equal(stopped.data.summary.cancelled,3);assert.equal(stopped.data.status,'FINISHED_WITH_ERRORS');
+  assert.deepEqual((await request(`/workers/${a.id}`)).data.reserved,{cpu:0,memory_mb:0,jobs:0});
+  const retry=await request(`/tasks/${job.task.id}/retry`,{});assert.equal(retry.status,201);assert.equal(retry.data.experiment_id,undefined);assert.equal(retry.data.scheduling_algorithm,undefined);
+  await request(`/tasks/${retry.data.id}/cancel`,{});
+});
+
+test('experiment input validation and worker requirements reject unusable runs',async()=>{
+  assert.equal((await request('/experiments',{name:'No workers',algorithm:'round_robin',job_count:2})).status,422);
+  await enroll();
+  assert.equal((await request('/experiments',{name:'One worker',algorithm:'round_robin',job_count:2})).status,422);
+  await enroll('worker-b');
+  for(const fields of [{job_count:20},{algorithm:'magic'},{mix:'repeat_task'},{command:'whoami'}])assert.equal((await request('/experiments',{name:'Invalid',algorithm:'round_robin',job_count:2,...fields})).status,422);
+  assert.equal((await request('/experiments',undefined,'')).status,401);
+});
+
+test('finished experiment comparison checks actual conditions and export uses actual job records',async()=>{
+  const a=await enroll(),b=await enroll('worker-b');
+  async function batch(algorithm){
+    const response=await request('/experiments',{name:`Trial ${algorithm}`,algorithm,mix:'quick',job_count:2});assert.equal(response.status,201,JSON.stringify(response.data));
+    for(const worker of [a,b]){
+      const job=await claim(worker.token);assert.ok(job.attempt);const payload=await completePayload(job.attempt.id,worker.token);
+      assert.equal((await request(`/worker/attempts/${job.attempt.id}/complete`,payload,worker.token)).status,200);
+    }
+    return response.data;
+  }
+  const first=await batch('round_robin'),second=await batch('least_loaded');
+  const comparison=await request(`/experiments/compare?ids=${first.id},${second.id}`);
+  assert.equal(comparison.status,200);assert.equal(comparison.data.comparable,true,JSON.stringify(comparison.data.reasons));
+  assert.equal(comparison.data.runs[0].summary.completed,2);assert.equal(comparison.data.runs[0].summary.completion_sample_count,2);
+  const csv=await request(`/experiments/${first.id}/export`);assert.match(csv.data.toString(),/queue_seconds/);assert.match(csv.data.toString(),new RegExp(first.task_ids[0]));
+  const third=await request('/experiments',{name:'Different mix',algorithm:'resource_aware',mix:'mixed',job_count:2});assert.equal(third.status,201);
+  await request(`/experiments/${third.data.id}/cancel`,{});
+  const mismatch=await request(`/experiments/compare?ids=${first.id},${third.data.id}`);assert.equal(mismatch.data.comparable,false);assert.ok(mismatch.data.reasons.some(s=>s.includes('mixes')));
+});
+
+test('repeated CSV experiments reuse the approved input and normalized rules with a stable content identity',async()=>{
+  const a=await enroll();await enroll('worker-b');
+  const uploaded=await request('/uploads?filename=source.csv',Buffer.from('category,amount\nBooks,10\n'),op,true);
+  assert.equal(uploaded.status,201);assert.match(uploaded.data.sha256,/^[0-9a-f]{64}$/);
+  const source=await submit({kind:'csv',input_id:uploaded.data.id,parameters:{group_by:'category',value_column:'amount',deduplicate:true}});
+  const attempt=(await claim(a.token)).attempt,payload=await completePayload(attempt.id,a.token);
+  await request(`/worker/attempts/${attempt.id}/complete`,payload,a.token);
+  const started=await request('/experiments',{name:'Repeated data',algorithm:'resource_aware',mix:'repeat_task',source_task_id:source.id,job_count:2});
+  assert.equal(started.status,201,JSON.stringify(started.data));assert.equal(started.data.input_identity,uploaded.data.sha256);
+  const detail=await request(`/experiments/${started.data.id}`);
+  assert.equal(detail.data.tasks.length,2);
+  for(const t of detail.data.tasks){assert.equal(t.input_id,uploaded.data.id);assert.equal(t.kind,'csv');assert.equal(t.parameters.deduplicate,true);assert.equal(t.parameters.group_by,'category');}
+  await request(`/experiments/${started.data.id}/cancel`,{});
 });

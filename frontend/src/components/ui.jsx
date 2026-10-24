@@ -4,7 +4,7 @@ import { AlertCircle, ArrowUpRight, Check, ChevronRight, FileImage, FileSpreadsh
 import { api } from '../api';
 
 export const templates = {
-  csv: { name:'CSV data processing', short:'CSV processing', icon:FileSpreadsheet, description:'Group records and calculate totals from a CSV file.', output:'An aggregated CSV and processing report', accepts:'.csv' },
+  csv: { name:'CSV data processing', short:'CSV processing', icon:FileSpreadsheet, description:'Clean tabular data, inspect quality and summarise a numeric column by group.', output:'Cleaned CSV, grouped statistics, outlier rows, HTML report and JSON metadata', accepts:'.csv' },
   images: { name:'Image processing', short:'Image processing', icon:FileImage, description:'Resize images and generate a set of thumbnails.', output:'Processed PNG images and a manifest', accepts:'.zip,.png,.jpg,.jpeg' },
   cpu: { name:'CPU benchmark', short:'CPU benchmark', icon:Terminal, description:'Run a prime-number calculation to measure compute performance.', output:'Prime count, checksum and execution timings', accepts:'' },
 };

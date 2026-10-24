@@ -1,0 +1,8 @@
+export const datasets = {
+  sales: {title:'Sales by region', description:'Compare sales across regions.', columns:'date, product, region, amount', group:'region', value:'amount', expected:'North: 2 orders, total 3,000, average 1,500. South: 1 order, total 500.', csv:'date,product,region,amount\n2026-10-01,Laptop,North,2000\n2026-10-02,Monitor,North,1000\n2026-10-03,Keyboard,South,500\n'},
+  marks: {title:'Marks by subject', description:'Summarise assessment results.', columns:'student, subject, marks', group:'subject', value:'marks', expected:'Math: 2 results, average 80, minimum 70, maximum 90. Science: average 85.', csv:'student,subject,marks\nAarav,Math,70\nSara,Math,90\nAarav,Science,85\n'},
+  expenses: {title:'Expenses by category', description:'See where money is being spent.', columns:'date, category, amount', group:'category', value:'amount', expected:'Travel: total 1,000. Supplies: total 200. These are sums of the uploaded amounts; no currency is assumed.', csv:'date,category,amount\n2026-10-01,Travel,600\n2026-10-02,Travel,400\n2026-10-03,Supplies,200\n'},
+  quality: {title:'Clean a messy dataset', description:'Inspect duplicates, blanks and unusual values.', columns:'order_id, category, amount, region', group:'category', value:'amount', clean:true, expected:'7 input rows → 4 retained. Removes 1 duplicate, 1 incomplete row and 1 invalid amount. Books total: 10,300; 1 statistical outlier.', csv:'order_id,category,amount,region\n1,Books,100,North\n2,Books,110,South\n3,Books,90,North\n4,Books,10000,North\n4,Books,10000,North\n5,Hardware,50,\n6,Hardware,not-a-number,West\n'},
+};
+
+export const csvRules={trim_whitespace:true,deduplicate:false,drop_missing:false,invalid_numeric:'fail',detect_outliers:true};

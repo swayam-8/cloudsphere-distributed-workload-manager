@@ -29,3 +29,11 @@ Run backend tests after engine changes; all three real containers after runtime
 changes; UI tests/build after frontend changes; HTTP smoke, real worker recovery
 and browser submission/download before completing the local milestone. Record
 passed, failed and pending evidence in `project-status.md`.
+
+## Implemented follow-up
+
+The CSV quality/analytics workflow and persisted Scheduling lab with comparisons
+and CSV export are now implemented locally. See [data workflows](data-workflows.md),
+[experiment methodology](experiment-methodology.md) and current verification in
+[project status](project-status.md). The original numbered list above records the
+starting plan; remaining AWS/cost/security milestones are still pending.

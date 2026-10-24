@@ -9,6 +9,7 @@ import { MongoClient } from 'mongodb';
 import { localApiConfig, localMongoConfig, localWebConfig } from './dev-config.mjs';
 import { localRequest } from './local-http.mjs';
 import { availablePort, Runtime, waitForService } from './runtime.mjs';
+import { jobFingerprint } from './job-image.mjs';
 
 const ROOT=path.resolve(import.meta.dirname,'..');
 
@@ -31,8 +32,9 @@ export async function startDevelopment() {
   try { os=docker(['info','--format','{{.OSType}}'],true).trim(); }
   catch { throw new Error('Docker Engine is unreachable. Open Docker Desktop, wait for Engine running, and check docker context show.'); }
   if(os!=='linux')throw new Error('Switch Docker Desktop to Linux containers, then retry.');
-  try { docker(['image','inspect','cloudsphere-job:dev'],true); }
-  catch { console.log('[setup] Building the approved job image.'); execFileSync(process.execPath,['scripts/build-job-image.mjs'],{env,stdio:'inherit'}); }
+  let freshImage=false;
+  try {const image=JSON.parse(docker(['image','inspect','cloudsphere-job:dev'],true))[0];freshImage=image.Config.Labels?.['com.cloudsphere.job-source']===await jobFingerprint(ROOT);} catch {}
+  if(!freshImage){console.log('[setup] Building the approved job image for the current source.');execFileSync(process.execPath,['scripts/build-job-image.mjs'],{env,stdio:'inherit'});}
   let inspected;
   try { inspected=JSON.parse(docker(['inspect',mongo.container],true))[0]; }
   catch(error) {

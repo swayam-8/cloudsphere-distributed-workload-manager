@@ -6,6 +6,7 @@ import { after, now } from './store.mjs';
 import { ACTIVE, event, failAttempt, reap, reservations, schedule, settings } from './scheduler.mjs';
 import { completionSchema, failureSchema, heartbeatSchema, progressSchema, registerSchema, settingsSchema, taskSchema } from './schemas.mjs';
 import { cloudMetrics, instances, storage } from './storage.mjs';
+import { registerExperiments } from './experiments.mjs';
 
 export class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
 export const fail = (status, message) => { throw new HttpError(status, message); };
@@ -86,7 +87,7 @@ export function createApp(store, cfg) {
   app.post('/api/tasks/:id/retry', op, async (req,res) => res.status(201).json(await store.transaction(async db => {
     const t = await need(db,'tasks',req.params.id);
     if (!['FAILED','CANCELLED'].includes(t.status)) fail(409,'Only failed or cancelled tasks can be retried');
-    const { _id, id, ...fields } = t;
+    const { _id, id, experiment_id, scheduling_algorithm, ...fields } = t;
     const next = await db.add('tasks',{ ...fields, status:'QUEUED', output_id:null, started_at:null,completed_at:null,created_at:now(),available_at:now(),error:null });
     await event(db,'TASK_CREATED',`Manual retry of ${t.id}`,next.id); return next;
   })));
@@ -96,7 +97,7 @@ export function createApp(store, cfg) {
     if (!Buffer.isBuffer(req.body) || !req.body.length) fail(422,'Artifact is empty');
     // External storage writes stay outside retryable Mongo transactions.
     const id = randomUUID(); await files.put(id,req.body);
-    const artifact = { _id:id,id,filename,size:req.body.length,role:'input',created_at:now(),attempt_id:null };
+    const artifact = { _id:id,id,filename,size:req.body.length,sha256:hash(req.body),role:'input',created_at:now(),attempt_id:null };
     await store.db.collection('artifacts').insertOne(artifact); res.status(201).json(artifact);
   });
   app.get('/api/tasks/:id/output', op, async (req,res) => {
@@ -210,6 +211,7 @@ export function createApp(store, cfg) {
       await failAttempt(db,a,await need(db,'tasks',a.task_id),body.error,cfg); return db.one('attempts',a.id);
     }));
   });
+  registerExperiments(app,store,cfg,op);
   app.use((req,res) => res.status(404).json({ detail:'Endpoint not found' }));
   app.use((error,req,res,next) => {
     const status = error instanceof ZodError ? 422 : error.status || (error.code === 11000 ? 409 : 500);

@@ -16,7 +16,7 @@ export async function execute(task, { input = null, extension = '.csv', signal, 
     await fs.chmod(root,0o755);
     for (const name of ['config','input','output']) { await fs.mkdir(path.join(root,name)); await fs.chmod(path.join(root,name),name === 'output' ? 0o777 : 0o755); }
     const config = path.join(root,'config/job.json');
-    await fs.writeFile(config,JSON.stringify({ kind:task.kind,parameters:task.parameters })); await fs.chmod(config,0o644);
+    await fs.writeFile(config,JSON.stringify({ kind:task.kind,parameters:task.parameters,task_id:task.id||null })); await fs.chmod(config,0o644);
     if (input) { const source = path.join(root,`input/input${extension}`); await fs.writeFile(source,input); await fs.chmod(source,0o644); }
     const command = ['run','--rm','--name',container,'--network','none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges',
       '--pids-limit','64','--cpus',String(task.cpu),'--memory',`${task.memory_mb}m`,'--memory-swap',`${task.memory_mb}m`,
@@ -41,6 +41,7 @@ export async function execute(task, { input = null, extension = '.csv', signal, 
     finally { clearTimeout(timeout); clearInterval(progress); signal?.removeEventListener('abort',abort); }
     if (stopped || code !== 0) throw new Error(`${stopped || `Job exited with code ${code}`}\n${logs}`);
     const result = JSON.parse(await fs.readFile(path.join(root,'output/result.json'),'utf8'));
+    if(Buffer.byteLength(JSON.stringify(result))>64000)throw new Error('Result metadata exceeds the 64 KB control-plane limit');
     const files = await fs.readdir(path.join(root,'output'));
     let total = 0;
     for (const name of files) {
@@ -48,12 +49,14 @@ export async function execute(task, { input = null, extension = '.csv', signal, 
       if (!info.isFile() || info.isSymbolicLink()) throw new Error('Unexpected output entry');
       total += info.size;
     }
-    if (total > 10*1024*1024) throw new Error('Output exceeds artifact limit');
+    if (total > 32*1024*1024) throw new Error('Uncompressed output exceeds the 32 MB safety limit');
     const stream = new PassThrough(), chunks = [], archive = archiver('zip',{ zlib:{ level:6 } });
     const done = new Promise((resolve,reject) => { stream.on('data',chunk => chunks.push(chunk)); stream.on('end',resolve); archive.on('error',reject); stream.on('error',reject); });
     archive.pipe(stream);
     for (const name of files) archive.file(path.join(root,'output',name),{ name });
     await archive.finalize(); await done;
-    return { result,logs,archive:Buffer.concat(chunks) };
+    const archiveBytes=Buffer.concat(chunks);
+    if(archiveBytes.length>10*1024*1024)throw new Error('Compressed output exceeds the 10 MB artifact limit');
+    return { result,logs,archive:archiveBytes };
   } finally { await fs.rm(root,{ recursive:true,force:true }); }
 }
