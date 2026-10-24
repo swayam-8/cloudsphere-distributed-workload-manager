@@ -23,7 +23,7 @@
 
 | Check | Observed outcome |
 |---|---|
-| Backend/integration/container suite | 42 passed; zero failed/skipped, including selectable API/web/MongoDB ports and process identity checks |
+| Backend/integration/container suite | 51 passed; zero failed/skipped, including bootstrap caching, proxy-independent loopback HTTP, process cleanup and port collision checks |
 | React tests | 3 passed, including actionable proxy-route errors |
 | Vite production build | Passed; bundled Inter fonts and separate chart bundle |
 | Chromium workflow | Real submission, computation, decision inspector, ZIP download and responsive navigation |
@@ -35,6 +35,10 @@
 | Docker Compose config | Parsed successfully |
 | Coexisting MongoDB servers | Local startup and real job/result readiness passed on host port 27028 while the original MongoDB remained running on 27017 |
 | One-command launcher | `npm run dev:all` started UI 5199, API 8019, MongoDB 27028 and workers; Chromium submission/result download passed through the matching frontend proxy |
+| First-run and cached startup | Combined launcher installed both frozen dependency sets automatically, then reused them after a graceful stop/restart |
+| Workstation proxy settings | Full local stack became ready with intentionally unusable HTTP/HTTPS proxy settings; direct API and frontend proxy both returned the same CloudSphere PID |
+| Cross-platform automation | Added Ubuntu and Windows GitHub Actions checks for portable startup tests, React tests and UI build; native Windows Docker end-to-end verification remains pending |
+| Occupied API and frontend ports | A second complete launch selected free ports, verified its own API through its frontend and completed a real job without stopping the original services |
 
 Smoke/recovery JSON evidence and browser screenshots are under ignored `.local/`.
 All numerical/metric displays use actual execution data. No AWS account operations

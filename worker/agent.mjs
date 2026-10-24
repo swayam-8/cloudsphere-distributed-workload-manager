@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import { setTimeout as sleep } from 'node:timers/promises';
 import 'dotenv/config';
 import { execute } from './executor.mjs';
+import { isLoopbackHttp, localRequest } from '../scripts/local-http.mjs';
 
 const { values } = parseArgs({ options:{ name:{ type:'string' },url:{ type:'string',default:process.env.CLOUDSPHERE_API_URL || 'http://127.0.0.1:8000' },cpu:{ type:'string',default:'1' },memory:{ type:'string',default:'512' },'state-dir':{ type:'string',default:'.local/workers' } } });
 if (!values.name || !/^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,99}$/.test(values.name)) throw new Error('Supply a valid --name');
@@ -15,7 +16,9 @@ await fs.mkdir(values['state-dir'],{ recursive:true,mode:0o700 });
 const state = path.join(values['state-dir'],`${values.name}.json`);
 let token = process.env.CLOUDSPHERE_ENROLLMENT_TOKEN || '';
 async function request(route, body, raw = false) {
-  const response = await fetch(`${values.url}/api${route}`,{ method:body === undefined ? 'GET' : 'POST',headers:{ Authorization:`Bearer ${token}`,...(body !== undefined ? { 'Content-Type':raw ? 'application/octet-stream' : 'application/json' } : {}) },body:body === undefined ? undefined : raw ? body : JSON.stringify(body),signal:AbortSignal.timeout(20000) });
+  const address=`${values.url}/api${route}`;
+  const options={ method:body === undefined ? 'GET' : 'POST',headers:{ Authorization:`Bearer ${token}`,...(body !== undefined ? { 'Content-Type':raw ? 'application/octet-stream' : 'application/json' } : {}) },body:body === undefined ? undefined : raw ? body : JSON.stringify(body),signal:AbortSignal.timeout(20000) };
+  const response = await (isLoopbackHttp(address) ? localRequest(address,{...options,timeoutMs:20000}) : fetch(address,options));
   if (!response.ok) { const e = new Error(`Control plane returned ${response.status}`); e.status = response.status; throw e; }
   return response;
 }
@@ -33,6 +36,7 @@ if (identity.url !== values.url) throw new Error('Saved credential belongs to an
 token = identity.token;
 let current = null, stopping = false;
 for (const sig of ['SIGINT','SIGTERM']) process.on(sig,() => { stopping = true; current?.abort.abort(); });
+process.on('message',message=>{if(message?.type==='cloudsphere-stop'){stopping=true;current?.abort.abort();}});
 function cpuTimes() { return os.cpus().reduce((sum,c) => ({ idle:sum.idle+c.times.idle,total:sum.total+Object.values(c.times).reduce((a,b)=>a+b,0) }),{ idle:0,total:0 }); }
 let previous = cpuTimes();
 console.log(`Worker ${values.name} active; Docker runtime; mode=${process.env.CLOUDSPHERE_MODE || 'LOCAL'}`);
@@ -74,3 +78,4 @@ while (!stopping) {
 }
 current?.abort.abort();
 await current?.promise;
+if(process.connected)process.disconnect();

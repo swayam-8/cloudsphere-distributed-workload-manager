@@ -1,6 +1,8 @@
 import { after, before, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { Store, after as future } from '../backend/store.mjs';
 import { config } from '../backend/config.mjs';
@@ -12,7 +14,7 @@ before(async () => {
   const database = `cloudsphere_test_${randomUUID().replaceAll('-','')}`;
   const uri = new URL(process.env.CLOUDSPHERE_TEST_MONGODB_URI || 'mongodb://127.0.0.1:27017/?replicaSet=rs0'); uri.pathname = `/${database}`;
   store = await Store.connect(uri.toString());
-  cfg = config({ operatorToken:op,enrollmentToken:enrollment,mongoUrl:uri.toString(),dataDir:await fs.mkdtemp('/tmp/cloudsphere-test-'),retryBackoff:0,mode:'LOCAL' });
+  cfg = config({ operatorToken:op,enrollmentToken:enrollment,mongoUrl:uri.toString(),dataDir:await fs.mkdtemp(path.join(os.tmpdir(),'cloudsphere-test-')),retryBackoff:0,mode:'LOCAL' });
   server = createApp(store,cfg).listen(0,'127.0.0.1'); await new Promise(resolve => server.once('listening',resolve));
   base = `http://127.0.0.1:${server.address().port}`;
 });

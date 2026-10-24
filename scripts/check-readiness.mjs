@@ -2,13 +2,14 @@ import fs from 'node:fs/promises';
 import { parse } from 'dotenv';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import { localApiConfig } from './dev-config.mjs';
+import { localApiAddress } from './local-address.mjs';
+import { localRequest } from './local-http.mjs';
 
 process.chdir(fileURLToPath(new URL('..',import.meta.url)));
-const api = localApiConfig();
+const api = {origin:await localApiAddress(process.cwd())};
 const token=parse(await fs.readFile('.local/dev.env')).CLOUDSPHERE_OPERATOR_TOKEN;
 async function request(route,body) {
-  const response=await fetch(`${api.origin}/api${route}`,{ method:body===undefined?'GET':'POST',headers:{ Authorization:`Bearer ${token}`,'Content-Type':'application/json' },body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(10000) });
+  const response=await localRequest(`${api.origin}/api${route}`,{ method:body===undefined?'GET':'POST',headers:{ Authorization:`Bearer ${token}`,'Content-Type':'application/json' },body:body===undefined?undefined:JSON.stringify(body),timeoutMs:10000 });
   if(!response.ok) throw new Error(`Readiness request failed: ${response.status}`); return response;
 }
 let healthy=false;

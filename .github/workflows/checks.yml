@@ -1,0 +1,26 @@
+name: Portable startup and console checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  portable:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --prefix frontend --no-audit --no-fund
+      - run: node --test --test-concurrency=1 tests/bootstrap.test.mjs tests/dev-config.test.mjs tests/local-http.test.mjs tests/local-address.test.mjs tests/runtime.test.mjs
+      - run: npm run test:ui
+      - run: npm run build

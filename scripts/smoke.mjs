@@ -2,13 +2,14 @@ import fs from 'node:fs/promises';
 import { parse } from 'dotenv';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import { localApiConfig } from './dev-config.mjs';
+import { localApiAddress } from './local-address.mjs';
+import { localRequest } from './local-http.mjs';
 
 process.chdir(fileURLToPath(new URL('..',import.meta.url)));
-const api = localApiConfig();
+const api = {origin:await localApiAddress(process.cwd())};
 const token=parse(await fs.readFile('.local/dev.env')).CLOUDSPHERE_OPERATOR_TOKEN;
 async function request(route,body) {
-  const response=await fetch(`${api.origin}/api${route}`,{ method:body === undefined ? 'GET' : 'POST',headers:{ Authorization:`Bearer ${token}`,...(body === undefined ? {} : { 'Content-Type':Buffer.isBuffer(body) ? 'application/octet-stream' : 'application/json' }) },body:body === undefined ? undefined : Buffer.isBuffer(body) ? body : JSON.stringify(body) });
+  const response=await localRequest(`${api.origin}/api${route}`,{ method:body === undefined ? 'GET' : 'POST',headers:{ Authorization:`Bearer ${token}`,...(body === undefined ? {} : { 'Content-Type':Buffer.isBuffer(body) ? 'application/octet-stream' : 'application/json' }) },body:body === undefined ? undefined : Buffer.isBuffer(body) ? body : JSON.stringify(body),timeoutMs:20000 });
   if(!response.ok) throw new Error(`Smoke request failed: ${response.status}`);
   return response;
 }

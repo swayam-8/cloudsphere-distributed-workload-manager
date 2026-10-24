@@ -7,7 +7,7 @@ an appropriate 4xx/5xx status; clients must inspect HTTP status.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | /health | Unauthenticated database readiness and mode |
+| GET | /health or /api/health | Unauthenticated database readiness, service identity, process ID and mode |
 | POST / GET | /api/tasks | Create validated approved task / paginated list |
 | GET | /api/tasks/:id | Task, attempts, decisions and lifecycle events |
 | POST | /api/tasks/:id/cancel | Fence active attempts and cancel task |
