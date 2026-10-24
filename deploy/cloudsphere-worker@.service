@@ -1,0 +1,25 @@
+[Unit]
+Description=CloudSphere Node worker %i
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=cloudsphere
+Group=cloudsphere
+SupplementaryGroups=docker
+WorkingDirectory=/var/lib/cloudsphere
+EnvironmentFile=/etc/cloudsphere/worker.env
+ExecStart=/usr/bin/node /opt/cloudsphere/worker/agent.mjs --name %i --state-dir /var/lib/cloudsphere/identity --cpu ${CLOUDSPHERE_WORKER_CPU} --memory ${CLOUDSPHERE_WORKER_MEMORY}
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cloudsphere
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

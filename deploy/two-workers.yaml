@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'REVIEW ONLY: creates exactly two billable CloudSphere workers. No deployment has been run.'
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Existing subnet with outbound HTTPS and SSM connectivity
+  WorkerAmi:
+    Type: AWS::EC2::Image::Id
+    Description: Reviewed Linux AMI with Node 22+, Docker and SSM Agent
+  WorkerInstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.small, t3.medium]
+Resources:
+  WorkerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ec2.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  WorkerProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref WorkerRole]
+  WorkerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Outbound HTTPS only; workers never accept execution requests
+      VpcId: !Ref VpcId
+      SecurityGroupIngress: []
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+  WorkerA:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref WorkerAmi
+      InstanceType: !Ref WorkerInstanceType
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: [!Ref WorkerSecurityGroup]
+      IamInstanceProfile: !Ref WorkerProfile
+      MetadataOptions: {HttpTokens: required, HttpEndpoint: enabled}
+      Tags:
+        - {Key: Name, Value: cloudsphere-worker-a}
+        - {Key: Project, Value: CloudSphere}
+        - {Key: Role, Value: worker}
+  WorkerB:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref WorkerAmi
+      InstanceType: !Ref WorkerInstanceType
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: [!Ref WorkerSecurityGroup]
+      IamInstanceProfile: !Ref WorkerProfile
+      MetadataOptions: {HttpTokens: required, HttpEndpoint: enabled}
+      Tags:
+        - {Key: Name, Value: cloudsphere-worker-b}
+        - {Key: Project, Value: CloudSphere}
+        - {Key: Role, Value: worker}
+Outputs:
+  WorkerAId: {Value: !Ref WorkerA}
+  WorkerBId: {Value: !Ref WorkerB}

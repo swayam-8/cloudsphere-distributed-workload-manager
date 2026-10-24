@@ -1,0 +1,36 @@
+import { test, expect } from '@playwright/test';
+import fs from 'node:fs';
+
+test('operator submits a real Docker benchmark, inspects placement and downloads output', async ({ page }) => {
+  const text = fs.readFileSync('../.local/dev.env', 'utf8');
+  const token = text.match(/^CLOUDSPHERE_OPERATOR_TOKEN=(.+)$/m)[1];
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByLabel('Operator token', { exact: true }).fill(token);
+  await page.getByRole('button', { name: 'Connect securely' }).click();
+  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Create workload', exact: true }).click();
+  await page.getByLabel('Workload name').fill('Browser prime benchmark');
+  await page.getByLabel('Find primes up to').fill('100');
+  await page.getByRole('button', { name: 'Submit workload' }).click();
+  await expect(page.getByRole('heading', { name: 'Browser prime benchmark' })).toBeVisible();
+  await expect(page.getByText('COMPLETED', { exact: true }).first()).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText('"prime_count": 25', { exact: false }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Scheduling decision inspector' })).toBeVisible();
+  const downloaded = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download result' }).click();
+  expect((await downloaded).suggestedFilename()).toMatch(/cloudsphere-.*\.zip/);
+  await page.getByRole('link', { name: 'Compute', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'worker-a' })).toBeVisible();
+  await page.screenshot({ path: '../.local/console-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Toggle navigation' }).click();
+  await page.getByRole('link', { name: 'Workloads', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Workloads', exact: true })).toBeVisible();
+  await expect(page.locator('.sidebar')).not.toHaveClass(/open/);
+  await page.locator('.sidebar').evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished)); });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: '../.local/console-mobile.png', fullPage: true, animations: 'disabled' });
+  expect(errors).toEqual([]);
+});
