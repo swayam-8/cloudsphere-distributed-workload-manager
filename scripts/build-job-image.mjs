@@ -21,4 +21,4 @@ if (!verified) {
 await fs.writeFile(path.join(context,'requirements.txt'),`pillow==${lock.pillow} --hash=sha256:${wheel.sha256}\n`);
 await fs.copyFile(path.join(root,'jobs/Dockerfile'),path.join(context,'Dockerfile'));
 await fs.copyFile(path.join(root,'jobs/run.py'),path.join(context,'run.py'));
-execFileSync('docker',['build','--network=none','-t','cloudsphere-job:dev',context],{ stdio:'inherit',env:{ ...process.env,DOCKER_CONFIG:process.env.DOCKER_CONFIG || path.join(root,'.local/docker') } });
+execFileSync('docker',['build','--network=none','-t','cloudsphere-job:dev',context],{ stdio:'inherit',env:process.env });

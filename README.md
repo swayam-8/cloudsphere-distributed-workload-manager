@@ -37,6 +37,27 @@ Local MongoDB is **loopback-only and unauthenticated** for development. It must
 never be exposed publicly. For shared/AWS deployment use an authenticated, TLS
 MongoDB replica set or Atlas and follow [security](docs/security.md).
 
+### An existing project already uses MongoDB port 27017
+
+Keep that project running. Use a separate local database port for CloudSphere.
+In Windows PowerShell, with Docker Desktop running:
+
+```powershell
+$env:CLOUDSPHERE_MONGO_PORT = "27028"
+npm run dev -- --no-frontend
+```
+
+For Bash/WSL: `CLOUDSPHERE_MONGO_PORT=27028 npm run dev -- --no-frontend`.
+This creates/reuses `cloudsphere-mongo-27028` and a separate named volume,
+artifact directory and worker identities. Keep using the same port to retain
+that development dataset. The original database/volume remains untouched.
+The `--no-frontend` option keeps a separately started frontend (for example on
+5199) running; its API proxy still connects to backend port 8000.
+
+The scripts preserve your configured Docker context and show Docker startup
+errors directly. Stop the selected container by its exact name if needed;
+never delete unrelated containers or volumes to free a port.
+
 ## Try actual workloads
 
 - **Prime benchmark:** bounded computation; limit 100 produces 25 primes with sum

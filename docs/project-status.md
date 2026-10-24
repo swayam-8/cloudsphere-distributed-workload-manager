@@ -23,7 +23,7 @@
 
 | Check | Observed outcome |
 |---|---|
-| Backend/integration/container suite | 32 passed; zero failed/skipped |
+| Backend/integration/container suite | 39 passed; zero failed/skipped, including alternate MongoDB port configuration |
 | React tests | 2 passed |
 | Vite production build | Passed; bundled Inter fonts and separate chart bundle |
 | Chromium workflow | Real submission, computation, decision inspector, ZIP download and responsive navigation |
@@ -33,6 +33,7 @@
 | Frozen installation | Both npm lockfiles reinstalled; verified job image and UI rebuilt |
 | Restart persistence | Tasks/results retained; both workers reauthenticated using saved identities |
 | Docker Compose config | Parsed successfully |
+| Coexisting MongoDB servers | Local startup and real job/result readiness passed on host port 27028 while the original MongoDB remained running on 27017 |
 
 Smoke/recovery JSON evidence and browser screenshots are under ignored `.local/`.
 All numerical/metric displays use actual execution data. No AWS account operations
