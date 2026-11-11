@@ -11,6 +11,10 @@ AWS SDK v3 adapters, IAM policy, a two-worker EC2 template and a systemd service
 are included; those files do not establish that EC2/S3/CloudWatch was deployed.
 See [project status](docs/project-status.md) and [AWS setup](docs/aws-setup.md).
 
+For the planned Batch integration, start with the [Windows AWS inventory guide](docs/windows-aws.md).
+It inspects the existing Stockholm queue using temporary CLI authentication;
+CloudShell is not required. Batch execution and DynamoDB integration remain pending.
+
 ## Start everything with one command
 
 Prerequisites: **Node.js 22+** (24 recommended), npm, Git, curl, and a running
