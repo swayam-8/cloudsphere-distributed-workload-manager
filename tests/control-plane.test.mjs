@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { request as httpRequest } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { Store, after as future } from '../backend/store.mjs';
 import { config } from '../backend/config.mjs';
@@ -210,4 +211,21 @@ test('LOCAL configuration exposes Batch as unavailable and rejects cloud submiss
   assert.equal((await request('/cloud/batch/verify',{})).status,422);
   assert.equal((await request('/tasks',{name:'Cloud attempt',execution_provider:'aws_batch',kind:'cpu'})).status,422);
   assert.equal((await store.all('tasks')).length,0);
+});
+
+test('demo allows local operator access without exposing worker credentials or trusting remote Host headers',async()=>{
+  cfg.demoAccess=true;
+  try{
+    assert.equal((await (await fetch(`${base}/api/session`)).json()).requires_token,false);
+    assert.equal((await request('/dashboard',undefined,'')).status,200);
+    assert.equal((await request('/tasks',{name:'Token-free demo job'},'')).status,201);
+    assert.equal((await request('/worker/claim',{},'')).status,401);
+    assert.equal((await request('/worker/register',{name:'unexpected',cpu:1,memory_mb:256},'')).status,401);
+    const withHost=route=>new Promise((resolve,reject)=>{
+      const req=httpRequest(`${base}/api${route}`,{headers:{Host:'attacker.example'}},response=>{let text='';response.setEncoding('utf8');response.on('data',chunk=>text+=chunk);response.on('end',()=>resolve({status:response.statusCode,data:JSON.parse(text)}));});
+      req.on('error',reject);req.end();
+    });
+    assert.equal((await withHost('/dashboard')).status,401);
+    assert.equal((await withHost('/session')).data.requires_token,true);
+  }finally{cfg.demoAccess=false;}
 });

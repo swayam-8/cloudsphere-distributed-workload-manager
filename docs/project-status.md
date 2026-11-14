@@ -30,7 +30,7 @@
 | Check | Observed outcome |
 |---|---|
 | Backend/integration/container suite | 73 passed; zero failed/skipped, including real CSV cleaning/report contents, source-workload reuse, policy isolation, measured experiment metrics, validation, comparison and cancellation |
-| React tests | 11 passed, including sample input/output guidance, matching cleaning rules, upload discovery, file preview, column selection and upload/submission retries |
+| React tests | 12 passed, including sample input/output guidance, matching cleaning rules, upload discovery, file preview, column selection and upload/submission retries |
 | Vite production build | Passed; bundled Inter fonts and separate chart bundle |
 | Chromium workflows | 5 passed: actual CSV upload/aggregation, messy-data cleaning and report, image resize, CPU benchmark and two-policy experiment comparison/export, with real downloads and mobile overflow checks |
 | Real HTTP smoke | Five jobs completed; two simultaneous workers and queued work observed; numerical/CSV/image outputs asserted |
@@ -69,6 +69,16 @@ or restoration in a new cloud task.
 - Live ECR publication, support deployment, runtime IAM, network/image pulls and
   application-to-AWS execution remain **unverified and pending**. The agent has
   no connected AWS identity; local tester inspection permissions do not deploy.
+
+## Token-free loopback demo
+
+The one-command local and AWS-demo launchers open the workspace directly without
+an operator-token screen. The manual/hosted server defaults to token authentication;
+worker enrollment and per-worker authentication remain unchanged. The demo requires
+an explicit flag, loopback socket peer and loopback Host, and refuses a public bind.
+The update passed 35 targeted API/access checks, 12 React tests and a production
+build. Anonymous dashboard access and worker rejection were also verified through
+the running frontend proxy. Full browser workflows exercise the token-free entry.
 
 ## Pending
 

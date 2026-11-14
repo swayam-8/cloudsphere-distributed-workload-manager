@@ -5,6 +5,7 @@ import { z } from 'zod';
 export function config(overrides = {}) {
   const env = process.env;
   const result = {
+    demoAccess:env.CLOUDSPHERE_DEMO_ACCESS==='1',
     mode: env.CLOUDSPHERE_MODE || 'LOCAL', mongoUrl: env.CLOUDSPHERE_MONGODB_URI || 'mongodb://127.0.0.1:27017/cloudsphere?replicaSet=rs0',
     operatorToken: env.CLOUDSPHERE_OPERATOR_TOKEN || '', enrollmentToken: env.CLOUDSPHERE_ENROLLMENT_TOKEN || '',
     dataDir: path.resolve(env.CLOUDSPHERE_DATA_DIR || '.local/data'), leaseSeconds: Number(env.CLOUDSPHERE_LEASE_SECONDS || 30),

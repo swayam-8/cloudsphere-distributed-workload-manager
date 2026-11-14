@@ -107,7 +107,9 @@ The launcher installs locked dependencies if needed, starts/reuses the private
 local MongoDB, starts Express and React, and verifies the actual AWS account,
 queue, active job definition and S3 deployment image manifest. It starts **no
 local worker agents** in this mode. Open the console address printed by the
-launcher and use the private operator token from `.local/dev.env`.
+launcher. The loopback demo opens directly without an operator token. Worker
+credentials remain private in `.local/dev.env`; hosted/manual API operation
+retains operator authentication.
 
 The local database is individual-development-only and bound to loopback. Never
 expose it publicly. AWS containers do not contact the local API or MongoDB;

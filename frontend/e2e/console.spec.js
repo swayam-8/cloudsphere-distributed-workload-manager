@@ -2,13 +2,18 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 
 async function login(page) {
-  const text=fs.readFileSync('../.local/dev.env','utf8');
-  const token=text.match(/^CLOUDSPHERE_OPERATOR_TOKEN=(.+)$/m)[1];
   await page.goto('/');
   const health=await page.request.get('/api/health');
   expect(health.ok()).toBe(true);expect((await health.json()).service).toBe('cloudsphere');
-  await page.getByLabel('Operator token',{exact:true}).fill(token);
-  await page.getByRole('button',{name:'Open workspace'}).click();
+  const session=await page.request.get('/api/session');
+  if((await session.json()).requires_token){
+    const text=fs.readFileSync('../.local/dev.env','utf8');
+    const token=text.match(/^CLOUDSPHERE_OPERATOR_TOKEN=(.+)$/m)[1];
+    await page.getByLabel('Operator token',{exact:true}).fill(token);
+    await page.getByRole('button',{name:'Open workspace'}).click();
+  }else{
+    await expect(page.getByLabel('Operator token',{exact:true})).toHaveCount(0);
+  }
   await expect(page.getByRole('heading',{name:'Overview',exact:true})).toBeVisible();
 }
 async function finish(page,name) {

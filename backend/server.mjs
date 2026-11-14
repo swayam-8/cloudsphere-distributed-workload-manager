@@ -3,12 +3,15 @@ import { Store } from './store.mjs';
 import { createApp } from './app.mjs';
 import { reap } from './scheduler.mjs';
 import { localApiConfig } from '../scripts/dev-config.mjs';
+import { requireSafeDemoBind } from './access.mjs';
 import { batchController } from './batch.mjs';
 import { settleExperiments } from './experiments.mjs';
 
-const cfg = config(), store = await Store.connect(cfg.mongoUrl), batch = batchController(store,cfg), app = createApp(store,cfg,{batch});
+const cfg=config(),host=process.env.HOST||'127.0.0.1';
+requireSafeDemoBind(cfg,host);
+const store=await Store.connect(cfg.mongoUrl),batch=batchController(store,cfg),app=createApp(store,cfg,{batch});
 const api = localApiConfig();
-const server = app.listen(api.port,process.env.HOST || '127.0.0.1',() => {
+const server = app.listen(api.port,host,() => {
   console.log(`CloudSphere Express API listening on port ${api.port}; mode=${cfg.mode}`);
   if(process.send)process.send({type:'cloudsphere-listening',pid:process.pid,port:api.port});
 });

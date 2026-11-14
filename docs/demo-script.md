@@ -2,7 +2,7 @@
 
 ## Verified local workflow
 
-1. `npm run dev:all`; authenticate in the console using the private operator token.
+1. `npm run dev:all`; open the printed console address. The loopback demo opens directly without a token.
 2. Show two registered LOCAL workers and real host measurements.
 3. Open New workload and explain the input → column selection → output examples.
    Use **Sales by region**: North total 3000 / average 1500, South total 500.

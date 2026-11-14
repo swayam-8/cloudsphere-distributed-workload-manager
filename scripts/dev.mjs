@@ -29,7 +29,7 @@ export async function startDevelopment() {
   const web={port:noFrontend ? localWebConfig().port : await availablePort(localWebConfig().port)};
   const noProxy=[process.env.NO_PROXY || process.env.no_proxy || '','127.0.0.1','localhost','::1'].filter(Boolean).join(',');
   const env={...process.env,...cloud,...credentials,PORT:String(api.port),HOST:'127.0.0.1',CLOUDSPHERE_API_PORT:String(api.port),CLOUDSPHERE_WEB_PORT:String(web.port),
-    CLOUDSPHERE_MODE:awsDemo?'AWS':'LOCAL',CLOUDSPHERE_MONGODB_URI:mongo.uri,CLOUDSPHERE_DATA_DIR:mongo.dataDir,CLOUDSPHERE_API_URL:api.origin,NO_PROXY:noProxy,no_proxy:noProxy};
+    CLOUDSPHERE_DEMO_ACCESS:'1',CLOUDSPHERE_MODE:awsDemo?'AWS':'LOCAL',CLOUDSPHERE_MONGODB_URI:mongo.uri,CLOUDSPHERE_DATA_DIR:mongo.dataDir,CLOUDSPHERE_API_URL:api.origin,NO_PROXY:noProxy,no_proxy:noProxy};
   const docker=(args,capture=false)=>execFileSync('docker',args,{env,encoding:'utf8',stdio:capture?['ignore','pipe','pipe']:['ignore','ignore','inherit']});
   let os;
   try { os=docker(['info','--format','{{.OSType}}'],true).trim(); }
@@ -86,7 +86,7 @@ export async function startDevelopment() {
     await fs.writeFile('.local/runtime.json',JSON.stringify({supervisorPid:process.pid,apiPid:backend.child.pid,apiUrl:api.origin,webUrl:noFrontend?null:`http://127.0.0.1:${web.port}`,mongoPort:mongo.port},null,2));
     console.log(`\nCloudSphere is ready. API port ${api.port}; MongoDB port ${mongo.port}; ${awsDemo?'AWS Batch execution (local control plane)':'two healthy workers'}.`);
     if(!noFrontend)console.log(`Console address: http://127.0.0.1:${web.port}`);
-    console.log(`Operator token file: ${path.join(ROOT,'.local/dev.env')} (open privately in VS Code). Press Ctrl+C to stop this stack.\n`);
+    console.log('Demo workspace opens directly without an operator token. Access is limited to this computer. Press Ctrl+C to stop this stack.\n');
     while(!stopping) {
       const failed=runtime.children.find(h=>h.error || h.child.exitCode!==null || h.child.signalCode!==null);
       if(failed)throw new Error(`${failed.name} stopped.\n${failed.tail()}`);

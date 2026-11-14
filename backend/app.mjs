@@ -6,6 +6,7 @@ import { after, now } from './store.mjs';
 import { ACTIVE, event, failAttempt, reap, reservations, schedule, settings } from './scheduler.mjs';
 import { completionSchema, failureSchema, heartbeatSchema, progressSchema, registerSchema, settingsSchema, taskSchema } from './schemas.mjs';
 import { cloudMetrics, instances, storage } from './storage.mjs';
+import { demoAccessAllowed } from './access.mjs';
 import { batchController } from './batch.mjs';
 import { registerExperiments } from './experiments.mjs';
 
@@ -30,7 +31,7 @@ export function createApp(store, cfg, options={}) {
   app.disable('x-powered-by');
   app.use((req,res,next) => { res.set('X-Content-Type-Options','nosniff'); res.set('Cache-Control','no-store'); next(); });
   app.use(express.json({ limit: '96kb' }));
-  const op = (req,res,next) => { if (!matches(bearer(req), cfg.operatorToken)) return res.status(401).json({ detail: 'Operator authentication required' }); next(); };
+  const op = (req,res,next) => { if (!demoAccessAllowed(cfg,req)&&!matches(bearer(req), cfg.operatorToken)) return res.status(401).json({ detail: 'Operator authentication required' }); next(); };
   const enrollment = (req,res,next) => { if (!matches(bearer(req), cfg.enrollmentToken)) return res.status(401).json({ detail: 'Enrollment authentication required' }); next(); };
   const worker = async (req,res,next) => { const w = await store.one('workers', { token_hash: hash(bearer(req)) }); if (!w) fail(401,'Worker authentication required'); req.workerId = w.id; next(); };
   const raw = express.raw({ type: () => true, limit: cfg.maxUploadBytes });
@@ -58,6 +59,7 @@ export function createApp(store, cfg, options={}) {
     await store.db.command({ ping: 1 });
     res.json({ service: 'cloudsphere', pid: process.pid, status: 'ok', mode: cfg.mode, database: 'MongoDB replica set' });
   });
+  app.get('/api/session',(req,res)=>res.json({requires_token:!demoAccessAllowed(cfg,req)}));
   app.get('/api/dashboard', op, async (req,res) => res.json(await dashboard()));
   app.post('/api/tasks', op, async (req,res) => {
     const body = taskSchema.parse(req.body);

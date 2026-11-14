@@ -1,7 +1,9 @@
 # REST API contract (MERN milestone)
 
-Express listens on port 8000 by default. Application calls are JSON with
-`Authorization: Bearer <operator-token>`. Worker tokens are separate. Responses
+Express listens on port 8000 by default. Hosted/manual application calls are JSON with
+`Authorization: Bearer <operator-token>`. One-command demo launchers enable
+operator access without a token only for loopback peer/Host requests.
+`GET /api/session` reports `requires_token` for the frontend. Worker tokens remain separate. Responses
 use UUID IDs and UTC ISO 8601 timestamps. Errors have `{ "detail": "..." }` and
 an appropriate 4xx/5xx status; clients must inspect HTTP status.
 

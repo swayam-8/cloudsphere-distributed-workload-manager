@@ -9,7 +9,7 @@ afterEach(() => { cleanup(); setToken(''); vi.restoreAllMocks(); });
 test('console rejects invalid authentication with an actionable error', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false, status: 401, json: async () => ({ detail: 'Operator authentication required' }) });
   render(<App/>);
-  fireEvent.change(screen.getByLabelText('Operator token'), { target: { value: 'wrong-credential' } });
+  fireEvent.change(await screen.findByLabelText('Operator token'), { target: { value: 'wrong-credential' } });
   fireEvent.click(screen.getByRole('button', { name: 'Open workspace' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Operator authentication required');
   expect(sessionStorage.getItem('cloudsphere-token')).toBeNull();
@@ -18,7 +18,7 @@ test('console rejects invalid authentication with an actionable error', async ()
 test('a missing proxy route reports backend routing instead of blaming the token', async () => {
   vi.spyOn(globalThis,'fetch').mockResolvedValue({ ok:false,status:404,json:async()=>{ throw new Error('Not JSON'); } });
   render(<App/>);
-  fireEvent.change(screen.getByLabelText('Operator token'),{ target:{ value:'test-token-for-proxy-check' } });
+  fireEvent.change(await screen.findByLabelText('Operator token'),{ target:{ value:'test-token-for-proxy-check' } });
   fireEvent.click(screen.getByRole('button',{ name:'Open workspace' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('CLOUDSPHERE_API_PORT matches');
   expect(sessionStorage.getItem('cloudsphere-token')).toBeNull();
@@ -37,4 +37,14 @@ test('authenticated empty overview shows observed zeroes and worker instructions
   expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(4);
   fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
   await waitFor(() => expect(screen.getByLabelText('Operator token')).toBeInTheDocument());
+});
+
+test('loopback demo opens directly without a token or sign-out control',async()=>{
+  setToken('stale-demo-token');
+  vi.spyOn(globalThis,'fetch').mockImplementation(async url=>({ok:true,json:async()=>url.endsWith('/session')?{requires_token:false}:url.endsWith('/dashboard')?{total:0,counts:{},healthy_workers:0,offline_workers:0,recent_tasks:[],mode:'LOCAL'}:url.endsWith('/workers')?[]:{mode:'LOCAL'}}));
+  render(<App/>);
+  expect(await screen.findByRole('heading',{name:'Overview',exact:true})).toBeInTheDocument();
+  expect(screen.queryByLabelText('Operator token')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button',{name:'Sign out'})).not.toBeInTheDocument();
+  expect(sessionStorage.getItem('cloudsphere-token')).toBeNull();
 });

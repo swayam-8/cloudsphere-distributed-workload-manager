@@ -63,10 +63,13 @@ an OS-assigned free port and wires the workers/proxy to it. Open the **console
 address printed by the current run**, which may differ from 5199. It never kills
 another project to free a port. It does not silently switch MongoDB databases.
 
-Open the absolute **operator token file** path printed by the command in VS Code
-(normally `.local/dev.env`). Copy only the value after `CLOUDSPHERE_OPERATOR_TOKEN=`
-into the console login form. This is a bearer credential, not a username/password.
-Never share or commit the file or use the enrollment token in the login form.
+The demo workspace opens directly—**no operator token is required** when using
+`npm run dev:all` or the configured `npm run dev:aws` launcher. Both bind to this
+computer's loopback interfaces. Open the address printed by the current launch.
+
+Hosted/manual deployments using `npm start` retain operator-token authentication.
+Private worker/enrollment credentials are still generated and stored in
+`.local/dev.env`; never share or commit that file.
 
 Keep that terminal open. **Ctrl+C** stops only this launcher's API/frontend/workers.
 Startup errors print in the terminal and trigger the same cleanup; a failed
@@ -113,7 +116,7 @@ keeps TLS, package integrity and wheel checksum verification enabled.
 | Health timeout / empty reply | The launcher now uses direct loopback HTTP independent of HTTP proxy variables. It reports the last HTTP error and API output, then cleans up its children. Keep that exact output for diagnosis; do not disable TLS or your firewall. |
 | Another app opens | Use the current launcher's printed console address, not an old bookmarked port. Both the service name and backend PID must match before startup succeeds. |
 | 404 API error | A route/proxy mismatch, not an invalid token. Restart with the combined launcher; the frontend and workers receive the selected API port together. |
-| 401 API error | Use the operator token from this checkout's private `.local/dev.env`; disconnect an old browser session before signing in again. |
+| 401 API error | For the demo, restart with `npm run dev:all` and open its current printed address. Hosted/manual deployments still require the configured operator token. |
 | No `.local/api.log` in terminal directory | You are outside the actual checkout. The launcher now prints its absolute token-file path; logs are in that same `.local` directory. |
 | Worker enrollment name collision | Preserve/reuse the saved worker identity file. Do not overwrite identities to take over another worker. |
 
