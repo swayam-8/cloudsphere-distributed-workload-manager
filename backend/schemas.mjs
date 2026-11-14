@@ -5,7 +5,7 @@ const parameters = {
   csv: z.strictObject({ group_by: z.string().max(80).default(''), value_column: z.string().max(80).default(''),
     trim_whitespace:z.boolean().default(true),deduplicate:z.boolean().default(false),drop_missing:z.boolean().default(false),
     invalid_numeric:z.enum(['fail','skip']).default('fail'),detect_outliers:z.boolean().default(true) }),
-  images: z.strictObject({ width: z.number().int().min(16).max(2048).default(256) }),
+  images: z.strictObject({ operation:z.enum(['thumbnail','compress']).default('thumbnail'), quality:z.number().int().min(20).max(95).default(80), width: z.number().int().min(16).max(2048).default(256) }),
 };
 export const taskSchema = z.strictObject({
   execution_provider:z.enum(['workers','aws_batch']).default('workers'),
