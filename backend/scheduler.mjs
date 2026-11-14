@@ -31,7 +31,7 @@ export async function reap(db, cfg) {
 export async function schedule(db, cfg) {
   await reap(db, cfg);
   const defaultAlgorithm = (await settings(db)).algorithm, workers = await db.all('workers', {}, { name: 1 });
-  const queue = await db.all('tasks', { status: 'QUEUED', available_at: { $lte: now() } });
+  const queue = await db.all('tasks', { execution_provider:{$ne:'aws_batch'},status: 'QUEUED', available_at: { $lte: now() } });
   const age = t => t.priority + Math.floor((Date.now() - Date.parse(t.created_at)) / 60000);
   queue.sort((a,b) => age(b) - age(a) || a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id));
   for (const task of queue) {

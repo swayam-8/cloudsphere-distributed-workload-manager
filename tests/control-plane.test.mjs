@@ -203,3 +203,11 @@ test('repeated CSV experiments reuse the approved input and normalized rules wit
   for(const t of detail.data.tasks){assert.equal(t.input_id,uploaded.data.id);assert.equal(t.kind,'csv');assert.equal(t.parameters.deduplicate,true);assert.equal(t.parameters.group_by,'category');}
   await request(`/experiments/${started.data.id}/cancel`,{});
 });
+
+test('LOCAL configuration exposes Batch as unavailable and rejects cloud submissions without launching anything',async()=>{
+  const available=await request('/cloud/batch');assert.equal(available.status,200);assert.equal(available.data.enabled,false);
+  assert.equal((await request('/cloud/batch',undefined,'')).status,401);
+  assert.equal((await request('/cloud/batch/verify',{})).status,422);
+  assert.equal((await request('/tasks',{name:'Cloud attempt',execution_provider:'aws_batch',kind:'cpu'})).status,422);
+  assert.equal((await store.all('tasks')).length,0);
+});

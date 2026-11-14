@@ -34,6 +34,7 @@ export class Store extends View {
     await db.collection('tasks').createIndex({ status: 1, created_at: -1 });
     await db.collection('metrics').createIndex({ worker_id: 1, timestamp: -1 });
     await db.collection('decisions').createIndex({ task_id: 1, created_at: -1 });
+    await db.collection('events').createIndex({audit_pending:1,timestamp:1});
     await db.collection('experiments').createIndex({ status:1,created_at:-1 });
     await db.collection('locks').updateOne({ _id: 'dispatch' }, { $setOnInsert: { revision: 0 } }, { upsert: true });
     return store;

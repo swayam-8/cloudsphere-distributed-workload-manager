@@ -20,13 +20,16 @@ export async function startDevelopment() {
     await fs.writeFile('.local/dev.env',`CLOUDSPHERE_OPERATOR_TOKEN=${randomBytes(32).toString('base64url')}\nCLOUDSPHERE_ENROLLMENT_TOKEN=${randomBytes(32).toString('base64url')}\n`,{flag:'wx',mode:0o600});
   } catch(error) { if(error.code!=='EEXIST')throw error; }
   const credentials=parse(await fs.readFile('.local/dev.env'));
+  const awsDemo=process.argv.includes('--aws');
+  let cloud={};
+  if(awsDemo){try{cloud=parse(await fs.readFile('.local/aws.env'));}catch(error){if(error.code==='ENOENT')throw new Error('AWS deployment configuration is missing. Read docs/aws-batch-demo.md and prepare the reviewed support deployment before running dev:aws. Local mode remains available with npm run dev:all.');throw error;}}
   const mongo=localMongoConfig();
   const api=localApiConfig({CLOUDSPHERE_API_PORT:String(await availablePort(localApiConfig().port))});
   const noFrontend=process.argv.includes('--no-frontend');
   const web={port:noFrontend ? localWebConfig().port : await availablePort(localWebConfig().port)};
   const noProxy=[process.env.NO_PROXY || process.env.no_proxy || '','127.0.0.1','localhost','::1'].filter(Boolean).join(',');
-  const env={...process.env,...credentials,PORT:String(api.port),HOST:'127.0.0.1',CLOUDSPHERE_API_PORT:String(api.port),CLOUDSPHERE_WEB_PORT:String(web.port),
-    CLOUDSPHERE_MODE:'LOCAL',CLOUDSPHERE_MONGODB_URI:mongo.uri,CLOUDSPHERE_DATA_DIR:mongo.dataDir,CLOUDSPHERE_API_URL:api.origin,NO_PROXY:noProxy,no_proxy:noProxy};
+  const env={...process.env,...cloud,...credentials,PORT:String(api.port),HOST:'127.0.0.1',CLOUDSPHERE_API_PORT:String(api.port),CLOUDSPHERE_WEB_PORT:String(web.port),
+    CLOUDSPHERE_MODE:awsDemo?'AWS':'LOCAL',CLOUDSPHERE_MONGODB_URI:mongo.uri,CLOUDSPHERE_DATA_DIR:mongo.dataDir,CLOUDSPHERE_API_URL:api.origin,NO_PROXY:noProxy,no_proxy:noProxy};
   const docker=(args,capture=false)=>execFileSync('docker',args,{env,encoding:'utf8',stdio:capture?['ignore','pipe','pipe']:['ignore','ignore','inherit']});
   let os;
   try { os=docker(['info','--format','{{.OSType}}'],true).trim(); }
@@ -63,9 +66,10 @@ export async function startDevelopment() {
     const backend=runtime.start('api','backend/server.mjs',[],{ipc:true});
     await waitForService(backend,`${api.origin}/health`);
     const names=['worker-a','worker-b'].map(name=>`${name}${api.suffix}`);
-    for(const name of names)runtime.start(name,'worker/agent.mjs',['--name',name,'--state-dir',`${mongo.workerState}${api.suffix}`],{ipc:true});
-    let fleetReady=false;
-    for(let i=0;i<60;i++) {
+    if(!awsDemo)for(const name of names)runtime.start(name,'worker/agent.mjs',['--name',name,'--state-dir',`${mongo.workerState}${api.suffix}`],{ipc:true});
+    let fleetReady=awsDemo;
+    if(awsDemo){const result=await localRequest(`${api.origin}/api/cloud/batch/verify`,{method:'POST',headers:{Authorization:`Bearer ${credentials.CLOUDSPHERE_OPERATOR_TOKEN}`,'Content-Type':'application/json'},body:'{}'});if(!result.ok)throw new Error('AWS account, Batch definition, or S3 deployment verification failed. Check profile, runtime IAM policy and .local/aws.env; no job was submitted.');console.log('[aws] Account, queue, approved image and S3 deployment verified. Jobs use AWS Batch, not local workers.');}
+    for(let i=0;!awsDemo&&i<60;i++) {
       const failed=runtime.children.find(h=>h.error || h.child.exitCode!==null || h.child.signalCode!==null);
       if(failed)throw new Error(`${failed.name} exited during startup.\n${failed.tail()}`);
       const response=await localRequest(`${api.origin}/api/workers`,{headers:{Authorization:`Bearer ${credentials.CLOUDSPHERE_OPERATOR_TOKEN}`}});
@@ -80,7 +84,7 @@ export async function startDevelopment() {
       await waitForService(frontend,`http://127.0.0.1:${web.port}/api/health`,{pid:backend.child.pid});
     }
     await fs.writeFile('.local/runtime.json',JSON.stringify({supervisorPid:process.pid,apiPid:backend.child.pid,apiUrl:api.origin,webUrl:noFrontend?null:`http://127.0.0.1:${web.port}`,mongoPort:mongo.port},null,2));
-    console.log(`\nCloudSphere is ready. API port ${api.port}; MongoDB port ${mongo.port}; two healthy workers.`);
+    console.log(`\nCloudSphere is ready. API port ${api.port}; MongoDB port ${mongo.port}; ${awsDemo?'AWS Batch execution (local control plane)':'two healthy workers'}.`);
     if(!noFrontend)console.log(`Console address: http://127.0.0.1:${web.port}`);
     console.log(`Operator token file: ${path.join(ROOT,'.local/dev.env')} (open privately in VS Code). Press Ctrl+C to stop this stack.\n`);
     while(!stopping) {

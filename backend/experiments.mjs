@@ -85,7 +85,7 @@ export function registerExperiments(app,store,cfg,op) {
       let base={kind:'cpu',parameters:{limit:100000},cpu:1,memory_mb:256,priority:1,timeout_seconds:180,max_retries:1,input_id:null};
       let inputIdentity=null,source=null,inputName=null;
       if(body.mix==='repeat_task') {
-        source=await db.one('tasks',body.source_task_id);if(!source)error(404,'Source workload not found');
+        source=await db.one('tasks',body.source_task_id);if(source?.execution_provider==='aws_batch')error(422,'The custom-policy lab cannot control AWS Batch placement; choose a worker workload.');if(!source)error(404,'Source workload not found');
         base=taskSchema.parse({name:'Experiment source',...Object.fromEntries(Object.keys(base).map(k=>[k,source[k]]))});delete base.name;
         if(source.input_id){const artifact=await db.one('artifacts',source.input_id);if(!artifact||artifact.role!=='input')error(422,'Source workload input is unavailable');inputIdentity=artifact.sha256||artifact.id;inputName=artifact.filename;}
       }

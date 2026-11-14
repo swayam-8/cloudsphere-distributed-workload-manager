@@ -10,6 +10,7 @@ export function config(overrides = {}) {
     dataDir: path.resolve(env.CLOUDSPHERE_DATA_DIR || '.local/data'), leaseSeconds: Number(env.CLOUDSPHERE_LEASE_SECONDS || 30),
     heartbeatTimeout: Number(env.CLOUDSPHERE_HEARTBEAT_TIMEOUT || 20), retryBackoff: Number(env.CLOUDSPHERE_RETRY_BACKOFF_SECONDS || 2),
     maxUploadBytes: 10 * 1024 * 1024, region: env.CLOUDSPHERE_AWS_REGION || 'ap-south-1',
+    batchQueue:env.CLOUDSPHERE_BATCH_QUEUE||'',batchDefinition:env.CLOUDSPHERE_BATCH_DEFINITION||'',auditTable:env.CLOUDSPHERE_AUDIT_TABLE||'',batchLogGroup:env.CLOUDSPHERE_BATCH_LOG_GROUP||'/aws/batch/cloudsphere',expectedAccount:env.CLOUDSPHERE_AWS_ACCOUNT||'',
     bucket: env.CLOUDSPHERE_S3_BUCKET || '', projectTag: env.CLOUDSPHERE_PROJECT_TAG || 'CloudSphere', ...overrides,
   };
   z.object({ mode: z.enum(['LOCAL','AWS']), operatorToken: z.string().min(24), enrollmentToken: z.string().min(24),

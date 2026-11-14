@@ -754,3 +754,5 @@ footer button.text-button { font-size: 10px; color: #9daec4; }
 @media(max-width:600px) { .dataset-examples { grid-template-columns:1fr; } .quality-grid,.lab-measures { grid-template-columns:repeat(2,minmax(0,1fr)); padding:18px; } .output-files>div { grid-template-columns:1fr; gap:5px; } }
 .comparison-table th small { display:block; margin-top:5px; font-weight:400; text-transform:none; letter-spacing:0; }
 .lab-form .field-note { color:#526177; line-height:1.7; }
+.cloud-identifier { overflow-wrap:anywhere; font-size:11px; }
+.cloud-log { max-height:350px; overflow:auto; padding:20px; white-space:pre-wrap; overflow-wrap:anywhere; font-size:11px; line-height:1.7; }

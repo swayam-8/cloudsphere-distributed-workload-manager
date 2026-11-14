@@ -1,4 +1,4 @@
-# Project status — 24 October 2026
+# Project status — 14 November 2026
 
 ## Completed local milestone
 
@@ -29,8 +29,8 @@
 
 | Check | Observed outcome |
 |---|---|
-| Backend/integration/container suite | 62 passed; zero failed/skipped, including real CSV cleaning/report contents, source-workload reuse, policy isolation, measured experiment metrics, validation, comparison and cancellation |
-| React tests | 10 passed, including sample input/output guidance, matching cleaning rules, upload discovery, file preview, column selection and upload/submission retries |
+| Backend/integration/container suite | 73 passed; zero failed/skipped, including real CSV cleaning/report contents, source-workload reuse, policy isolation, measured experiment metrics, validation, comparison and cancellation |
+| React tests | 11 passed, including sample input/output guidance, matching cleaning rules, upload discovery, file preview, column selection and upload/submission retries |
 | Vite production build | Passed; bundled Inter fonts and separate chart bundle |
 | Chromium workflows | 5 passed: actual CSV upload/aggregation, messy-data cleaning and report, image resize, CPU benchmark and two-policy experiment comparison/export, with real downloads and mobile overflow checks |
 | Real HTTP smoke | Five jobs completed; two simultaneous workers and queued work observed; numerical/CSV/image outputs asserted |
@@ -51,6 +51,24 @@ All numerical/metric displays use actual execution data. No AWS account operatio
 were performed. CloudFormation/systemd files have not been deployed or validated
 on an EC2 host. Test results establish this local instance, not a published snapshot
 or restoration in a new cloud task.
+
+## AWS Batch code milestone
+
+- Separate Batch provider with durable submission/reconciliation, cancellation
+  fencing, bounded result verification and idempotent DynamoDB audit outbox.
+- S3-aware approved container wrapper; locked ECR build/publication and
+  digest-pinned job-definition helper; scoped support CloudFormation template.
+- Frontend provider selection, actual job identity, logs/audit, recorded EC2/VPC
+  placement and genuine CloudWatch datapoints when available.
+- One-command AWS demo launcher with local private control plane and cloud
+  execution; original local-worker path preserved.
+- Separate Batch image smoke test passed for all three actual kernels with S3
+  fixtures and real ZIPs. This is not a live AWS account test.
+- User CLI output confirmed a healthy existing managed EC2 compute environment
+  in Stockholm, min/desired 0, max 2 vCPUs, x86-64. Job definitions were empty.
+- Live ECR publication, support deployment, runtime IAM, network/image pulls and
+  application-to-AWS execution remain **unverified and pending**. The agent has
+  no connected AWS identity; local tester inspection permissions do not deploy.
 
 ## Pending
 

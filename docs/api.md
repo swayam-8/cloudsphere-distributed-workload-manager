@@ -29,7 +29,7 @@ an appropriate 4xx/5xx status; clients must inspect HTTP status.
 | GET | /api/cloud/instances | Tagged EC2 discovery (empty in LOCAL) |
 | GET | /api/cloud/instances/:id/metrics | Genuine CloudWatch CPU for a discovered worker |
 
-Task creation fields: `name`, `kind` (`cpu`, `csv`, `images`), `parameters`, `cpu`
+Task creation fields: `execution_provider` (`workers`, default; or `aws_batch`), `name`, `kind` (`cpu`, `csv`, `images`), `parameters`, `cpu`
 (0.25–64), `memory_mb` (64–65536), `priority` (0–2), `timeout_seconds` (1–3600),
 `max_retries` (0–5), optional uploaded `input_id` (required for CSV/images).
 CPU parameters: `limit` 100–20000000. CSV: optional `group_by`, `value_column`, `trim_whitespace` (default true),
@@ -63,3 +63,17 @@ cannot be compared (409). See [metric definitions](experiment-methodology.md).
 Deadline and cost APIs are not implemented in this milestone. This
 contract replaces the Python/FastAPI-specific API documentation assumption in
 the original specification; OpenAPI/Swagger generation is future documentation work.
+
+
+AWS Batch endpoints (operator authentication):
+- GET /api/cloud/batch: configuration availability; not a live connection claim.
+- POST /api/cloud/batch/verify: verifies actual account, queue, definition and deployment manifest.
+- GET /api/tasks/:id/cloud-audit: DynamoDB lifecycle projection.
+- GET /api/tasks/:id/cloud-logs: last 100 actual CloudWatch log messages.
+- GET /api/tasks/:id/cloud-metrics: actual EC2 host CPU datapoints when compute was observed.
+
+Batch demo requests require 1–2 whole vCPUs, at least 128 MB and configured AWS
+execution. Existing local artifacts must be re-uploaded into the current S3
+workspace. Cancellation intent is immediate, provider confirmation asynchronous.
+Manual retries wait for cancellation confirmation and receive a new task/job ID.
+See [Batch execution and recovery](aws-batch-demo.md).

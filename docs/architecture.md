@@ -52,3 +52,17 @@ tasks continue using global settings. Summaries derive from persisted task/attem
 timestamps and host metrics. Experiment creation and cancellation use the same
 transactional dispatch lock as ordinary scheduling. The background maintenance
 loop settles terminal batches. See `migrations/002-analytics-experiments.md`.
+
+
+The AWS Batch provider is separate from custom worker dispatch. It writes a
+durable submission intent, uploads a bounded S3 configuration, submits the
+approved digest-pinned ECR image, reconciles status and verifies output identity.
+The non-root image wraps the existing fixed kernels and publishes its result
+manifest after its ZIP. It never needs inbound API or database access.
+
+A MongoDB outbox projects lifecycle events to DynamoDB idempotently. Real AWS
+logs and observed EC2/VPC placement are exposed through authenticated endpoints.
+The demonstration launcher retains the private local control plane to avoid
+unnecessary hosted instances/load balancers. This is AWS execution, not proof
+that the frontend/backend/database are AWS-hosted. See aws-batch-demo.md and
+migrations/003-batch-execution.md.

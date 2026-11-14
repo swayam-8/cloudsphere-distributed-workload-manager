@@ -6,14 +6,24 @@ execute approved CPU, CSV and image jobs in restricted Docker containers.
 It implements scheduling policies for study; it does not replace AWS Batch,
 ECS or Kubernetes.
 
-**Local execution is implemented and tested. Live AWS deployment is pending.**
+**Local execution is implemented and tested. AWS Batch integration code is included;
+live account deployment and acceptance verification are still pending.**
+
+For the existing Stockholm AWS queue, see [the Batch demonstration guide](docs/aws-batch-demo.md).
+It covers read-only inspection, scoped deployment, ECR publication, private S3,
+DynamoDB audit, actual Batch execution, logs, compute observations and cleanup.
+Use `npm run aws:deploy` for a read-only plan; `--apply` explicitly provisions the
+reviewed support resources. Use `npm run dev:aws` only after deployment/runtime
+permissions are configured. The demo control plane stays on your computer;
+the workload execution is on AWS. The original `npm run dev:all` remains local.
 AWS SDK v3 adapters, IAM policy, a two-worker EC2 template and a systemd service
 are included; those files do not establish that EC2/S3/CloudWatch was deployed.
 See [project status](docs/project-status.md) and [AWS setup](docs/aws-setup.md).
 
-For the planned Batch integration, start with the [Windows AWS inventory guide](docs/windows-aws.md).
-It inspects the existing Stockholm queue using temporary CLI authentication;
-CloudShell is not required. Batch execution and DynamoDB integration remain pending.
+The [Windows AWS inventory guide](docs/windows-aws.md) provides an additional
+read-only CLI inventory path; CloudShell is not required. Batch execution and
+DynamoDB integration code is included; live deployment and verification remain
+pending. Follow the [Batch demonstration guide](docs/aws-batch-demo.md) next.
 
 ## Start everything with one command
 

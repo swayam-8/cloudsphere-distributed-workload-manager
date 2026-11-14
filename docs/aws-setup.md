@@ -1,5 +1,10 @@
 # AWS setup — live verification pending
 
+For the new AWS Batch execution path using the existing Stockholm compute, start
+with [AWS Batch demonstration](aws-batch-demo.md). The instructions below describe
+the separate custom-worker hosting path; do not launch duplicate EC2 workers to
+follow the Batch guide.
+
 No AWS resources have been provisioned or changed. CloudFormation and service
 files are reviewable deployment inputs, not evidence of a successful deployment.
 Launching the template creates **two billable EC2 instances** and IAM resources.

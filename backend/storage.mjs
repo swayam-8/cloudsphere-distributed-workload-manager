@@ -13,7 +13,7 @@ export function storage(cfg, suppliedClient) {
       await fs.writeFile(path.join(cfg.dataDir, 'artifacts', id), data, { mode: 0o600 });
     },
     async get(id) {
-      if (client) return Buffer.from(await (await client.send(new GetObjectCommand({ Bucket: cfg.bucket, Key: `cloudsphere/${id}` }))).Body.transformToByteArray());
+      if (client) return Buffer.from(await (await client.send(new GetObjectCommand({ Bucket: cfg.bucket, Key: id.startsWith('cloudsphere/')?id:`cloudsphere/${id}` }))).Body.transformToByteArray());
       return fs.readFile(path.join(cfg.dataDir, 'artifacts', id));
     },
   };

@@ -77,3 +77,12 @@ test('a practical sample explains its output and submits the corresponding clean
   const call=api.mock.calls.find(([path,options])=>path==='/tasks'&&options?.method==='POST');
   expect(JSON.parse(call[1].body).parameters).toMatchObject({group_by:'category',value_column:'amount',deduplicate:true,drop_missing:true,invalid_numeric:'skip'});
 });
+
+test('an AWS-enabled workspace submits the explicitly labelled Batch execution provider',async()=>{
+  api.mockImplementation(async(path,options)=>path==='/cloud/batch'?{enabled:true,region:'eu-north-1'}:options?.method==='POST'?{id:'created-task'}:[]);
+  open();await reviewCSV();
+  expect(screen.getByText('AWS Batch — managed execution')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Submit workload'}));await screen.findByText('Submitted workload details');
+  const call=api.mock.calls.find(([path,options])=>path==='/tasks'&&options?.method==='POST');
+  expect(JSON.parse(call[1].body).execution_provider).toBe('aws_batch');
+});

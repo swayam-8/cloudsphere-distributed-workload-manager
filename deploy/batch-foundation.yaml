@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudSphere Batch support resources; no instances or load balancers are launched.
+Parameters:
+  QueueArn:
+    Type: String
+Resources:
+  Artifacts:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}
+      Tags: [{Key: Project, Value: CloudSphere}]
+  Repository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ImageTagMutability: IMMUTABLE
+      ImageScanningConfiguration: {ScanOnPush: true}
+      Tags: [{Key: Project, Value: CloudSphere}]
+  Audit:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: task_id, AttributeType: S}
+        - {AttributeName: event_key, AttributeType: S}
+      KeySchema:
+        - {AttributeName: task_id, KeyType: HASH}
+        - {AttributeName: event_key, KeyType: RANGE}
+      SSESpecification: {SSEEnabled: true}
+      Tags: [{Key: Project, Value: CloudSphere}]
+  Logs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 3
+      Tags: [{Key: Project, Value: CloudSphere}]
+  JobRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: JobArtifacts
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub '${Artifacts.Arn}/cloudsphere/*'
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub '${Artifacts.Arn}/cloudsphere/batch/*'
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ImageAndLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - {Effect: Allow, Action: 'ecr:GetAuthorizationToken', Resource: '*'}
+              - Effect: Allow
+                Action: [ecr:BatchCheckLayerAvailability, ecr:GetDownloadUrlForLayer, ecr:BatchGetImage]
+                Resource: !GetAtt Repository.Arn
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub '${Logs.Arn}'
+  BackendPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Attach to the backend identity separately; contains no provisioning permissions.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: [s3:GetObject, s3:PutObject]
+            Resource: !Sub '${Artifacts.Arn}/cloudsphere/*'
+          - Effect: Allow
+            Action: [dynamodb:PutItem, dynamodb:Query]
+            Resource: !GetAtt Audit.Arn
+          - Effect: Allow
+            Action: iam:PassRole
+            Resource: [!GetAtt JobRole.Arn, !GetAtt ExecutionRole.Arn]
+            Condition: {StringEquals: {'iam:PassedToService': ecs-tasks.amazonaws.com}}
+          - Effect: Allow
+            Action: batch:SubmitJob
+            Resource:
+              - !Ref QueueArn
+              - !Sub 'arn:${AWS::Partition}:batch:${AWS::Region}:${AWS::AccountId}:job-definition/cloudsphere-approved:*'
+          - Effect: Allow
+            Action: batch:TerminateJob
+            Resource: !Sub 'arn:${AWS::Partition}:batch:${AWS::Region}:${AWS::AccountId}:job/*'
+            Condition: {StringEquals: {'aws:ResourceTag/Project': CloudSphere}}
+          - Effect: Allow
+            Action: batch:TagResource
+            Resource: !Sub 'arn:${AWS::Partition}:batch:${AWS::Region}:${AWS::AccountId}:job/*'
+            Condition: {StringEquals: {'aws:RequestTag/Project': CloudSphere}}
+          - Effect: Allow
+            Action: [batch:DescribeJobs, batch:DescribeJobQueues, batch:DescribeJobDefinitions, batch:ListJobs, ec2:DescribeInstances, ecs:DescribeContainerInstances, cloudwatch:GetMetricStatistics]
+            Resource: '*'
+          - Effect: Allow
+            Action: logs:GetLogEvents
+            Resource: !Sub '${Logs.Arn}'
+Outputs:
+  Bucket: {Value: !Ref Artifacts}
+  RepositoryUri: {Value: !GetAtt Repository.RepositoryUri}
+  RepositoryName: {Value: !Ref Repository}
+  AuditTable: {Value: !Ref Audit}
+  LogGroup: {Value: !Ref Logs}
+  JobRoleArn: {Value: !GetAtt JobRole.Arn}
+  ExecutionRoleArn: {Value: !GetAtt ExecutionRole.Arn}
+  BackendPolicyArn: {Value: !Ref BackendPolicy}

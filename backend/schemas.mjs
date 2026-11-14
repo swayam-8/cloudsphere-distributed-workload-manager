@@ -8,6 +8,7 @@ const parameters = {
   images: z.strictObject({ width: z.number().int().min(16).max(2048).default(256) }),
 };
 export const taskSchema = z.strictObject({
+  execution_provider:z.enum(['workers','aws_batch']).default('workers'),
   name: z.string().trim().min(1).max(120), kind: z.enum(['cpu','csv','images']).default('cpu'),
   parameters: z.record(z.string(), z.unknown()).default({}), cpu: z.number().min(.25).max(64).default(1),
   memory_mb: z.number().int().min(64).max(65536).default(256), priority: z.number().int().min(0).max(2).default(1),

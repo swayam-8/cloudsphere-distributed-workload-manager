@@ -103,14 +103,15 @@ for this demo. Define cleanup for only the resources created by this project,
 including restoring reviewed Batch capacity settings and verifying termination
 of project instances. Never delete unrelated resources or retained user data.
 
-## 4. Next implementation milestone
+## 4. Implemented integration and remaining live verification
 
-Preserve the MERN backend and local custom-worker path. Add a separately labelled
-Batch provider, a fixed S3-aware job entrypoint, ECR publication pinned by digest,
+The MERN backend and local custom-worker path are preserved. The separately
+labelled Batch provider, fixed S3-aware entrypoint, digest-pinned ECR publication,
 durable submission/reconciliation/cancellation, verified artifact retrieval and
-an idempotent DynamoDB audit projection. The frontend must expose the actual
-Batch job identity and provider. Custom scheduling experiments remain on the
-custom workers; they do not control Batch's internal placement.
+DynamoDB audit projection are now implemented in code. The frontend exposes
+the actual Batch job identity and provider. Live account deployment and acceptance
+remain pending. Follow [the Batch demonstration guide](aws-batch-demo.md). Custom
+scheduling experiments remain on workers; they do not control Batch placement.
 
 The Windows backend can call AWS APIs over outbound HTTPS. Batch jobs retrieve
 their inputs and upload outputs using their scoped role; they must not require

@@ -6,6 +6,7 @@ import { after, now } from './store.mjs';
 import { ACTIVE, event, failAttempt, reap, reservations, schedule, settings } from './scheduler.mjs';
 import { completionSchema, failureSchema, heartbeatSchema, progressSchema, registerSchema, settingsSchema, taskSchema } from './schemas.mjs';
 import { cloudMetrics, instances, storage } from './storage.mjs';
+import { batchController } from './batch.mjs';
 import { registerExperiments } from './experiments.mjs';
 
 export class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
@@ -16,8 +17,16 @@ const matches = (a,b) => timingSafeEqual(Buffer.from(hash(a)), Buffer.from(hash(
 const safeWorker = ({ token_hash, ...worker }) => worker;
 const need = async (db, name, id) => (await db.one(name, id)) || fail(404, 'Record not found');
 
-export function createApp(store, cfg) {
+export function createApp(store, cfg, options={}) {
+  const batch=options.batch||batchController(store,cfg);
   const app = express(), files = storage(cfg);
+  async function artifactBytes(artifact) {
+    if(artifact.storage_provider==='s3'||artifact.s3_key){
+      if(cfg.mode!=='AWS')fail(422,'Start AWS mode to download this cloud artifact');
+      return storage({...cfg,bucket:artifact.bucket||cfg.bucket}).get(artifact.s3_key||artifact.id);
+    }
+    return storage({...cfg,mode:'LOCAL'}).get(artifact.id);
+  }
   app.disable('x-powered-by');
   app.use((req,res,next) => { res.set('X-Content-Type-Options','nosniff'); res.set('Cache-Control','no-store'); next(); });
   app.use(express.json({ limit: '96kb' }));
@@ -52,13 +61,18 @@ export function createApp(store, cfg) {
   app.get('/api/dashboard', op, async (req,res) => res.json(await dashboard()));
   app.post('/api/tasks', op, async (req,res) => {
     const body = taskSchema.parse(req.body);
+    if(body.execution_provider==='aws_batch'){
+      if(!batch.enabled)fail(422,'AWS Batch is not configured');
+      if(!Number.isInteger(body.cpu)||body.cpu>2||body.memory_mb<128)fail(422,'Batch demo requests require 1–2 whole vCPUs and at least 128 MB');
+    }
     res.status(201).json(await store.transaction(async db => {
       if (body.input_id) {
         const artifact = await need(db,'artifacts',body.input_id);
         const allowed = body.kind === 'csv' ? ['.csv'] : ['.png','.jpg','.jpeg','.zip'];
         if (artifact.role !== 'input' || !allowed.includes(path.extname(artifact.filename).toLowerCase())) fail(422,'Input file type does not match job template');
+        if(body.execution_provider==='aws_batch'&&(artifact.storage_provider!=='s3'||artifact.bucket!==cfg.bucket))fail(422,'Re-upload this input in the current AWS workspace before submitting to Batch');
       }
-      const task = await db.add('tasks', { ...body, status: 'QUEUED', output_id: null, created_at: now(), started_at: null, completed_at: null, available_at: now(), error: null });
+      const task = await db.add('tasks', { ...body, ...(body.execution_provider==='aws_batch'?{aws_region:cfg.region}:{}),status: 'QUEUED', output_id: null, created_at: now(), started_at: null, completed_at: null, available_at: now(), error: null });
       await event(db,'TASK_CREATED','Task queued for scheduling',task.id); return task;
     }));
   });
@@ -80,14 +94,18 @@ export function createApp(store, cfg) {
     if (t.status !== 'CANCELLED') {
       await db.set('tasks',t.id,{ status:'CANCELLED', completed_at: now() });
       for (const a of await db.all('attempts',{ task_id: t.id, status: { $in: ACTIVE } })) await db.set('attempts',a.id,{ status:'CANCELLED',completed_at:now() });
-      await event(db,'TASK_CANCELLED','Cancellation fenced active attempts; workers stop at next heartbeat',t.id);
+      for(const a of await db.all('attempts',{task_id:t.id,execution_provider:'aws_batch'}))await db.set('attempts',a.id,{status:'CANCELLED',completed_at:now()});
+      const e=await event(db,'TASK_CANCELLED','Cancellation recorded; execution provider will stop the job',t.id);
+      if(t.execution_provider==='aws_batch')await db.set('events',e.id,{audit_pending:true});
     }
     return db.one('tasks',t.id);
   })));
   app.post('/api/tasks/:id/retry', op, async (req,res) => res.status(201).json(await store.transaction(async db => {
     const t = await need(db,'tasks',req.params.id);
     if (!['FAILED','CANCELLED'].includes(t.status)) fail(409,'Only failed or cancelled tasks can be retried');
-    const { _id, id, experiment_id, scheduling_algorithm, ...fields } = t;
+    if(t.execution_provider==='aws_batch'&&!batch.enabled)fail(422,'AWS Batch is not configured');
+    if(t.execution_provider==='aws_batch'&&t.status==='CANCELLED'&&t.batch_attempt_id){const previous=await db.one('attempts',t.batch_attempt_id);if(previous&&!previous.batch_cancel_confirmed)fail(409,'Wait for AWS cancellation to be confirmed before retrying this workload');}
+    const { _id, id, experiment_id, scheduling_algorithm, batch_job_id, batch_attempt_id, ...fields } = t;
     const next = await db.add('tasks',{ ...fields, status:'QUEUED', output_id:null, started_at:null,completed_at:null,created_at:now(),available_at:now(),error:null });
     await event(db,'TASK_CREATED',`Manual retry of ${t.id}`,next.id); return next;
   })));
@@ -97,14 +115,14 @@ export function createApp(store, cfg) {
     if (!Buffer.isBuffer(req.body) || !req.body.length) fail(422,'Artifact is empty');
     // External storage writes stay outside retryable Mongo transactions.
     const id = randomUUID(); await files.put(id,req.body);
-    const artifact = { _id:id,id,filename,size:req.body.length,sha256:hash(req.body),role:'input',created_at:now(),attempt_id:null };
+    const artifact = { _id:id,id,filename,size:req.body.length,sha256:hash(req.body),storage_provider:cfg.mode==='AWS'?'s3':'local',bucket:cfg.mode==='AWS'?cfg.bucket:null,role:'input',created_at:now(),attempt_id:null };
     await store.db.collection('artifacts').insertOne(artifact); res.status(201).json(artifact);
   });
   app.get('/api/tasks/:id/output', op, async (req,res) => {
     const task = await need(store,'tasks',req.params.id);
     if (task.status !== 'COMPLETED' || !task.output_id) fail(404,'No completed output');
     const artifact = await need(store,'artifacts',task.output_id);
-    res.attachment(artifact.filename).send(await files.get(artifact.id));
+    res.attachment(artifact.filename).send(await artifactBytes(artifact));
   });
   app.get('/api/workers', op, async (req,res) => {
     const rows = [];
@@ -119,6 +137,11 @@ export function createApp(store, cfg) {
   const getSettings = async () => ({ ...await settings(store),mode:cfg.mode,lease_seconds:cfg.leaseSeconds,heartbeat_timeout:cfg.heartbeatTimeout,max_upload_bytes:cfg.maxUploadBytes });
   app.get('/api/settings', op, async (req,res) => res.json(await getSettings()));
   app.put('/api/settings', op, async (req,res) => { const body = settingsSchema.parse(req.body); await store.transaction(async db => { await db.setting('scheduler',body); await event(db,'SETTINGS_CHANGED',`Scheduling algorithm: ${body.algorithm}`); }); res.json(await getSettings()); });
+  app.get('/api/cloud/batch',op,(req,res)=>res.json({enabled:batch.enabled,region:cfg.region,queue:cfg.batchQueue||null}));
+  app.post('/api/cloud/batch/verify',op,async(req,res)=>res.json({connected:true,...await batch.verify()}));
+  app.get('/api/tasks/:id/cloud-audit',op,async(req,res)=>{await need(store,'tasks',req.params.id);res.json(await batch.timeline(req.params.id));});
+  app.get('/api/tasks/:id/cloud-metrics',op,async(req,res)=>res.json(await batch.metrics(req.params.id)));
+  app.get('/api/tasks/:id/cloud-logs',op,async(req,res)=>res.json(await batch.logs(req.params.id)));
   app.get('/api/cloud/status', op, (req,res) => res.json({ mode:cfg.mode,connected:cfg.mode === 'LOCAL' ? false : null,message:cfg.mode === 'LOCAL' ? 'AWS not connected — local workers and artifacts' : 'AWS configured; query instances to verify access',region:cfg.mode === 'AWS' ? cfg.region : null }));
   app.get('/api/cloud/instances', op, async (req,res) => { try { res.json(await instances(cfg)); } catch { fail(503,'AWS discovery failed; check IAM role, tags, region and connectivity'); } });
   app.get('/api/cloud/instances/:id/metrics', op, async (req,res) => {
@@ -168,7 +191,7 @@ export function createApp(store, cfg) {
     const a = await owned(store,req.params.id,req.workerId), t = await need(store,'tasks',a.task_id);
     if (!t.input_id) fail(404,'No input');
     const artifact = await need(store,'artifacts',t.input_id);
-    res.type('application/octet-stream').set('X-Input-Extension',path.extname(artifact.filename).toLowerCase()).send(await files.get(artifact.id));
+    res.type('application/octet-stream').set('X-Input-Extension',path.extname(artifact.filename).toLowerCase()).send(await artifactBytes(artifact));
   });
   app.post('/api/worker/attempts/:id/output', worker, raw, async (req,res) => {
     await owned(store,req.params.id,req.workerId);
@@ -177,7 +200,7 @@ export function createApp(store, cfg) {
     res.status(201).json(await store.transaction(async db => {
       await owned(db,req.params.id,req.workerId);
       // A unique artifact per upload; only the winning current attempt can attach it.
-      const row = { _id:id,id,role:'output',filename:`result-${req.params.id}.zip`,size:req.body.length,created_at:now(),attempt_id:req.params.id };
+      const row = { _id:id,id,role:'output',storage_provider:cfg.mode==='AWS'?'s3':'local',bucket:cfg.mode==='AWS'?cfg.bucket:null,filename:`result-${req.params.id}.zip`,size:req.body.length,created_at:now(),attempt_id:req.params.id };
       await db.db.collection('artifacts').insertOne(row,db.options); return row;
     }));
   });
