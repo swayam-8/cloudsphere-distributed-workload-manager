@@ -86,3 +86,28 @@ test('an AWS-enabled workspace submits the explicitly labelled Batch execution p
   const call=api.mock.calls.find(([path,options])=>path==='/tasks'&&options?.method==='POST');
   expect(JSON.parse(call[1].body).execution_provider).toBe('aws_batch');
 });
+
+test('image resize options are visible before upload and persist into the submitted job',async()=>{
+  const originalCreate=URL.createObjectURL,originalRevoke=URL.revokeObjectURL;
+  URL.createObjectURL=vi.fn(()=> 'blob:image-preview');URL.revokeObjectURL=vi.fn();
+  try {
+    open();fireEvent.click(screen.getByRole('button',{name:/Image processing/}));
+    expect(screen.getByText('Resize images into thumbnails')).toBeInTheDocument();
+    expect(screen.getByText(/downloadable ZIP with PNG thumbnails/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Maximum thumbnail size/),{target:{value:'128'}});
+    const file=new File(['image'],'landscape.png',{type:'image/png'});
+    fireEvent.change(screen.getByLabelText('Upload image or ZIP file'),{target:{files:[file]}});
+    const image=await screen.findByAltText('Preview of landscape.png');
+    Object.defineProperties(image,{naturalWidth:{value:800},naturalHeight:{value:400}});
+    fireEvent.load(image);
+    expect(screen.getByText('800 × 400 → approximately 128 × 64 pixels')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+    expect(screen.getByLabelText(/Maximum thumbnail size/)).toHaveValue('128');
+    fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+    expect(screen.getByText('Create thumbnails up to 128 × 128 px')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Submit workload'}));
+    await screen.findByText('Submitted workload details');
+    const call=api.mock.calls.find(([path,options])=>path==='/tasks'&&options?.method==='POST');
+    expect(JSON.parse(call[1].body)).toMatchObject({kind:'images',parameters:{width:128}});
+  } finally {URL.createObjectURL=originalCreate;URL.revokeObjectURL=originalRevoke;}
+});

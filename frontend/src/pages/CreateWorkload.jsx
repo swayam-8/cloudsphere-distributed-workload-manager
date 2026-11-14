@@ -15,6 +15,7 @@ export default function CreateWorkload({ notify }) {
   const [step,setStep]=useState(0),[file,setFile]=useState(null),[preview,setPreview]=useState(null),[previewError,setPreviewError]=useState('');
   const [rules,setRules]=useState(csvRules);
   const [values,setValues]=useState(defaults),[error,setError]=useState(''),[drag,setDrag]=useState(false),[phase,setPhase]=useState(''),[progress,setProgress]=useState(0),[uploaded,setUploaded]=useState(null),[imageUrl,setImageUrl]=useState('');
+  const [imageSize,setImageSize]=useState(null);
   const input=useRef(null),controller=useRef(null),mounted=useRef(true);
   const cloud=useData('/cloud/batch'),workers=useData('/workers'),navigate=useNavigate(),busy=Boolean(phase);
   const initialProvider=useRef(false);
@@ -22,7 +23,7 @@ export default function CreateWorkload({ notify }) {
   const field=name=>({value:values[name],onChange:e=>setValues(v=>({...v,[name]:e.target.value}))});
   useEffect(()=>()=>{mounted.current=false;controller.current?.abort();},[]);
   useEffect(()=>{
-    setPreview(null);setPreviewError('');setImageUrl('');
+    setPreview(null);setPreviewError('');setImageUrl('');setImageSize(null);
     if(!file)return;
     let active=true,url;
     if(kind==='csv') {
@@ -76,6 +77,18 @@ export default function CreateWorkload({ notify }) {
   const online=workers.data?.filter(w=>w.state==='HEALTHY') || [];
   const available=online.filter(w=>w.cpu-w.reserved.cpu>=Number(values.cpu) && w.memory_mb-w.reserved.memory_mb>=Number(values.memory) && w.reserved.jobs<w.max_parallel).length;
   const template=templates[kind];
+  const scale=imageSize?Math.min(1,Number(values.width)/imageSize.width,Number(values.width)/imageSize.height):null;
+  const imageOptions=<div className="form-section">
+    <h3>Resize images into thumbnails</h3>
+    <p>Choose a maximum size. Each image keeps its proportions and fits inside this square without stretching or enlarging.</p>
+    <label>Maximum thumbnail size<select name="width" {...field('width')}>{[64,128,256,512,1024,2048].map(n=><option value={n} key={n}>{n} × {n} pixels</option>)}</select><small>256 × 256 pixels by default. The same limit applies to every image in a ZIP.</small></label>
+    <div className="output-explainer" aria-live="polite"><strong>{imageSize?'Estimated output dimensions':'Example output'}</strong>
+      <p>{imageSize?`${imageSize.width} × ${imageSize.height} → approximately ${Math.max(1,Math.round(imageSize.width*scale))} × ${Math.max(1,Math.round(imageSize.height*scale))} pixels`:`800 × 400 → ${Math.min(800,Number(values.width))} × ${Math.min(400,Number(values.width)/2)} pixels`}</p>
+      <p>Keep proportions: always on. Smaller images stay at their original size.</p>
+      {file?.name.toLowerCase().endsWith('.zip') && <p>Individual image previews are unavailable for ZIP uploads. Each image is resized separately.</p>}
+      <strong>What you will get</strong><p>A downloadable ZIP with PNG thumbnails and result.json listing each input, output filename and final dimensions. Your original upload is preserved.</p>
+    </div>
+  </div>;
 
   return <>
     <Link className="back-link" to="/workloads"><ArrowLeft size={14}/> Back to workloads</Link>
@@ -87,7 +100,7 @@ export default function CreateWorkload({ notify }) {
         <fieldset disabled={busy}>
           {step===0 && <div className="step-body">
             <div className="step-intro"><span className="section-number">01</span><div><h2>Choose a workload</h2><p>Start with the kind of data you want to process.</p></div></div>
-            <div className="template-choices">{Object.entries(templates).map(([key,t])=>{const Icon=t.icon;return <button type="button" key={key} aria-pressed={kind===key} className={`template-choice ${kind===key?'selected':''}`} onClick={()=>chooseKind(key)}><Icon size={21}/><strong>{t.short}</strong><small>{key==='csv'?'.csv files':key==='images'?'Images or .zip':'No file required'}</small><span className="radio-mark">{kind===key && <i/>}</span></button>;})}</div>
+            <div className="template-choices">{Object.entries(templates).map(([key,t])=>{const Icon=t.icon;return <button type="button" key={key} aria-pressed={kind===key} className={`template-choice ${kind===key?'selected':''}`} onClick={()=>chooseKind(key)}><Icon size={21}/><strong>{t.short}</strong><small>{key==='csv'?'.csv files':key==='images'?'Resize PNG/JPEG images or a ZIP into thumbnails':'No file required'}</small><span className="radio-mark">{kind===key && <i/>}</span></button>;})}</div>
             {kind!=='cpu' ? <>
               <div className="field-heading"><h3>Upload your {kind==='csv'?'CSV file':'images'}</h3><span>Maximum 10 MB</span></div>
               <input ref={input} tabIndex={-1} className="sr-only" id="workload-file" type="file" accept={template.accepts} aria-label={kind==='csv'?'Upload CSV file':'Upload image or ZIP file'} onChange={e=>{if(e.target.files?.[0])chooseFile(e.target.files[0]);e.target.value='';}}/>
@@ -96,8 +109,9 @@ export default function CreateWorkload({ notify }) {
               </div> : <div className="selected-file"><JobIcon kind={kind}/><div><strong>{file.name}</strong><small>{bytes(file.size)} · Ready to upload</small></div><CheckCircle2 size={18} className="success-text"/><button type="button" className="icon-button" aria-label="Remove selected file" onClick={()=>{setFile(null);setUploaded(null);}}><X size={17}/></button></div>}
               {preview && <div className="preview"><div className="preview-heading"><span><FileSpreadsheet size={15}/> Data preview</span><small>{preview.headers.length} columns · first {preview.rows.length} rows</small></div><div className="table-wrap"><table><thead><tr>{preview.headers.map((h,i)=><th key={i}>{h || '(empty header)'}</th>)}</tr></thead><tbody>{preview.rows.map((row,index)=><tr key={index}>{row.map((cell,i)=><td key={i} title={cell}>{cell || '—'}</td>)}</tr>)}</tbody></table></div></div>}
               {previewError && <p className="field-note"><Info size={15}/> Preview unavailable: {previewError}</p>}
-              {imageUrl && <div className="image-preview"><img src={imageUrl} alt={`Preview of ${file.name}`}/><div><strong>Original image</strong><p>Aspect ratio will be preserved. Your original file stays unchanged.</p></div></div>}
+              {imageUrl && <div className="image-preview"><img src={imageUrl} alt={`Preview of ${file.name}`} onLoad={e=>setImageSize({width:e.currentTarget.naturalWidth,height:e.currentTarget.naturalHeight})}/><div><strong>Original image</strong><p>Aspect ratio will be preserved. Your original file stays unchanged.</p></div></div>}
 
+              {kind==='images' && imageOptions}
               {kind==='csv' && <DatasetGuide onUse={useSample}/>}
             </> : <div className="benchmark-intro"><JobIcon kind="cpu"/><div><h3>No file upload needed</h3><p>This job calculates prime numbers up to a limit you choose. Use it to see how workers handle a computational task.</p></div></div>}
           </div>}
@@ -108,7 +122,7 @@ export default function CreateWorkload({ notify }) {
             <div className="form-section"><h3>Processing options</h3>{kind==='csv' ? <div className="form-grid">
               <label>Group rows by{preview ? <select name="group_by" {...field('group')}><option value="">All rows together</option>{preview.headers.map((h,i)=><option key={i} value={h}>{h}</option>)}</select> : <input name="group_by" maxLength={80} placeholder="Column name (optional)" {...field('group')}/>}<small>Produce one summary row for each distinct value.</small></label>
               <label>Calculate the sum of{preview ? <select name="value_column" {...field('value')}><option value="">Count rows only</option>{preview.headers.map((h,i)=><option key={i} value={h}>{h}{preview.numeric.includes(h)?' · numeric':''}</option>)}</select> : <input name="value_column" maxLength={80} placeholder="Numeric column (optional)" {...field('value')}/>}<small>Produces sum, average, minimum and maximum. Plain numbers only.</small></label>
-            </div> : kind==='images' ? <label>Maximum thumbnail size<select name="width" {...field('width')}>{[64,128,256,512,1024,2048].map(n=><option value={n} key={n}>{n} × {n} pixels</option>)}</select><small>Images fit inside this size without stretching or enlarging.</small></label> : <label>Find primes up to<input name="limit" type="number" min={100} max={20000000} step={1} required {...field('limit')}/><small>100 is a quick check. Larger limits take more compute time; maximum 20 million.</small></label>}</div>
+            </div> : kind==='images' ? imageOptions : <label>Find primes up to<input name="limit" type="number" min={100} max={20000000} step={1} required {...field('limit')}/><small>100 is a quick check. Larger limits take more compute time; maximum 20 million.</small></label>}</div>
             {kind==='csv' && <div className="form-section"><h3>Data quality &amp; cleaning</h3><p className="field-note">Quality checks always run. Only the selected rules remove or change data; the original upload is preserved.</p><div className="cleaning-options">{[['trim_whitespace','Trim spaces around cell values'],['deduplicate','Remove exact duplicate rows'],['drop_missing','Remove rows with any empty cell'],['detect_outliers','Flag numeric outliers (1.5 × IQR; keep these rows)']].map(([key,label])=><label key={key}><input type="checkbox" checked={rules[key]} onChange={e=>setRules(r=>({...r,[key]:e.target.checked}))}/>{label}</label>)}</div>{values.value && <label>If the numeric column has invalid or empty values<select value={rules.invalid_numeric} onChange={e=>setRules(r=>({...r,invalid_numeric:e.target.value}))}><option value="fail">Fail the job and report the problem</option><option value="skip">Skip those rows and count removals in the report</option></select></label>}<div className="output-explainer"><strong>What you will get</strong><p>{values.group?`One summary for each ${values.group}.`:'One summary for the whole file.'} {values.value?`Count, sum, mean, minimum and maximum of ${values.value}.`:'Row counts; numeric aggregation is not selected.'} Plus quality checks, a cleaned CSV and a downloadable HTML report. Statistics use the retained rows.</p></div></div>}
             <div className="form-section"><h3>Execution</h3>{<label>Execution provider<select {...field('provider')}><option value="workers">CloudSphere workers — custom scheduling</option><option value="aws_batch" disabled={!cloud.data?.enabled}>{cloud.data?.enabled?'AWS Batch — managed execution':'AWS Batch — setup required'}</option></select><small>{cloud.data?.enabled?`Batch runs cloud jobs in ${cloud.data.region}; AWS controls placement.`:<>AWS execution needs setup. <Link to="/aws">Open AWS workspace</Link></>}</small></label>}</div>
             <details className="advanced-options"><summary>Advanced execution settings <span>1 vCPU / 256 MB by default</span></summary><div className="form-grid"><label>Priority<select {...field('priority')}><option value="0">Low</option><option value="1">Normal</option><option value="2">High</option></select><small>Higher-priority jobs are considered first.</small></label><label>Time limit (seconds)<input type="number" required min={1} max={3600} {...field('timeout')}/><small>Stop the job if processing takes longer.</small></label></div><div className="form-grid"><label>CPU cores<input type="number" required min={0.25} max={64} step={0.25} {...field('cpu')}/></label><label>Memory (MB)<input type="number" required min={64} max={65536} {...field('memory')}/></label><label>Automatic retries<input type="number" required min={0} max={5} {...field('retries')}/><small>Retry an interrupted or failed attempt up to this many times.</small></label></div></details>
