@@ -34,7 +34,7 @@ export function awsBatchGateway(cfg, clients={}) {
       const head=await s3.send(new GetObjectCommand({Bucket:cfg.bucket,Key:'cloudsphere/deployment.json'}));
       const deployment=JSON.parse(await readBoundedBody(head.Body,64000));
       if(deployment.protocol!=='cloudsphere-batch-v1'||deployment.image!==d.containerProperties.image)fail(503,'Job definition does not match the deployed CloudSphere image');
-      return {account:caller.Account,queue:q.jobQueueArn,definition:d.jobDefinitionArn,image:d.containerProperties.image,protocol:deployment.protocol};
+      return {account:caller.Account,queue:q.jobQueueArn,definition:d.jobDefinitionArn,image:d.containerProperties.image,job_role:d.containerProperties.jobRoleArn||null,execution_role:d.containerProperties.executionRoleArn||null,protocol:deployment.protocol};
     },
     async putConfig(key,value){await s3.send(new PutObjectCommand({Bucket:cfg.bucket,Key:key,Body:JSON.stringify(value),ContentType:'application/json',ServerSideEncryption:'AES256'}));},
     submit:input=>batch.send(new SubmitJobCommand(input)),
@@ -70,7 +70,7 @@ export function awsBatchGateway(cfg, clients={}) {
 
 export function batchController(store,cfg,gateway=awsBatchGateway(cfg)) {
   const enabled=cfg.mode==='AWS'&&Boolean(cfg.batchQueue&&cfg.batchDefinition&&cfg.auditTable);
-  let busy=false;
+  let busy=false,lastVerification={status:'not_checked',checked_at:null};
   async function auditEvent(db,task,kind,message){
     const e=await event(db,kind,message,task.id);
     await db.set('events',e.id,{audit_pending:true,execution_provider:'aws_batch'});
@@ -165,7 +165,7 @@ export function batchController(store,cfg,gateway=awsBatchGateway(cfg)) {
     for(const e of await store.all('events',{audit_pending:true},{timestamp:1},50)){
       const t=await store.one('tasks',e.task_id);
       await gateway.audit({task_id:e.task_id,event_key:`${e.timestamp}#${e.id}`,event_id:e.id,timestamp:e.timestamp,kind:e.kind,message:e.message,batch_job_id:t?.batch_job_id||null,execution_provider:'aws_batch'});
-      await store.set('events',e.id,{audit_pending:false});
+      await store.set('events',e.id,{audit_pending:false,audit_table:cfg.auditTable,audit_synced_at:now()});
     }
   }
   return {enabled,gateway,
@@ -176,7 +176,12 @@ export function batchController(store,cfg,gateway=awsBatchGateway(cfg)) {
       }
       try{await flushAudit();}catch(e){console.error('AWS audit sync pending:',safeError(e));}
     }finally{busy=false;}},
-    async verify(){if(!enabled)fail(422,'Batch execution is not configured');return gateway.ready();},
+    verification:()=>lastVerification,
+    async verify(){
+      if(!enabled)fail(422,'Batch execution is not configured');
+      try{const details=await gateway.ready();lastVerification={status:'passed',checked_at:now(),details};return details;}
+      catch(e){lastVerification={status:'failed',checked_at:now(),error:safeError(e)};throw e;}
+    },
     async timeline(taskId){if(!enabled)fail(422,'Batch audit is not configured');return gateway.timeline(taskId);},
     async metrics(taskId){if(!enabled)fail(422,'Start AWS mode to read cloud metrics');const t=await store.one('tasks',taskId);if(!t)fail(404,'Task not found');const a=t.batch_attempt_id?await store.one('attempts',t.batch_attempt_id):null;return a?.batch_compute?.instance_id?cloudMetrics(cfg,a.batch_compute.instance_id):{source:'AWS/EC2 CloudWatch CPUUtilization',datapoints:[]};},
     async logs(taskId){if(!enabled)fail(422,'Start AWS mode to read cloud logs');const t=await store.one('tasks',taskId);if(!t)fail(404,'Task not found');if(t.execution_provider!=='aws_batch')fail(422,'This task does not use AWS Batch');const a=await store.one('attempts',t.batch_attempt_id);return a?.batch_log_stream?gateway.logs(a.batch_log_stream):[];},

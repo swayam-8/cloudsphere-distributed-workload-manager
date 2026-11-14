@@ -6,6 +6,7 @@ import { after, now } from './store.mjs';
 import { ACTIVE, event, failAttempt, reap, reservations, schedule, settings } from './scheduler.mjs';
 import { completionSchema, failureSchema, heartbeatSchema, progressSchema, registerSchema, settingsSchema, taskSchema } from './schemas.mjs';
 import { cloudMetrics, instances, storage } from './storage.mjs';
+import { cloudOverview } from './cloud-overview.mjs';
 import { demoAccessAllowed } from './access.mjs';
 import { batchController } from './batch.mjs';
 import { registerExperiments } from './experiments.mjs';
@@ -139,6 +140,7 @@ export function createApp(store, cfg, options={}) {
   const getSettings = async () => ({ ...await settings(store),mode:cfg.mode,lease_seconds:cfg.leaseSeconds,heartbeat_timeout:cfg.heartbeatTimeout,max_upload_bytes:cfg.maxUploadBytes });
   app.get('/api/settings', op, async (req,res) => res.json(await getSettings()));
   app.put('/api/settings', op, async (req,res) => { const body = settingsSchema.parse(req.body); await store.transaction(async db => { await db.setting('scheduler',body); await event(db,'SETTINGS_CHANGED',`Scheduling algorithm: ${body.algorithm}`); }); res.json(await getSettings()); });
+  app.get('/api/cloud/overview',op,async(req,res)=>res.json(await cloudOverview(store,cfg,batch)));
   app.get('/api/cloud/batch',op,(req,res)=>res.json({enabled:batch.enabled,region:cfg.region,queue:cfg.batchQueue||null}));
   app.post('/api/cloud/batch/verify',op,async(req,res)=>res.json({connected:true,...await batch.verify()}));
   app.get('/api/tasks/:id/cloud-audit',op,async(req,res)=>{await need(store,'tasks',req.params.id);res.json(await batch.timeline(req.params.id));});

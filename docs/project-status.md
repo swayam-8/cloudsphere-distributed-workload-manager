@@ -30,7 +30,7 @@
 | Check | Observed outcome |
 |---|---|
 | Backend/integration/container suite | 73 passed; zero failed/skipped, including real CSV cleaning/report contents, source-workload reuse, policy isolation, measured experiment metrics, validation, comparison and cancellation |
-| React tests | 12 passed, including sample input/output guidance, matching cleaning rules, upload discovery, file preview, column selection and upload/submission retries |
+| React tests | 14 passed, including sample input/output guidance, matching cleaning rules, upload discovery, file preview, column selection and upload/submission retries |
 | Vite production build | Passed; bundled Inter fonts and separate chart bundle |
 | Chromium workflows | 5 passed: actual CSV upload/aggregation, messy-data cleaning and report, image resize, CPU benchmark and two-policy experiment comparison/export, with real downloads and mobile overflow checks |
 | Real HTTP smoke | Five jobs completed; two simultaneous workers and queued work observed; numerical/CSV/image outputs asserted |
@@ -91,3 +91,18 @@ OpenAPI generation; broader browser/accessibility coverage.
 The UI does not pretend these modules are complete. Next milestone: operator-
 approved AWS deployment and genuine S3/EC2/CloudWatch execution evidence using the
 instructions in `aws-setup.md`.
+
+
+## Simplified frontend follow-up
+
+Overview, Workloads and AWS workspace are primary; operational tools stay under
+Advanced. Large template/worker panels were removed from Overview, samples use
+one selector, resource controls and execution logs are collapsed, and workload
+lists focus on name/provider, status and submission date. A compact AWS page
+shows honest setup state and optional eight-service links. Its read-only
+verification records the actual check time; cloud detail polling starts only
+when the user expands execution details.
+
+Validation: 45 targeted backend/overview/Batch/API checks, 14 React tests, six
+real browser workflows including AWS-page local-mode visibility/mobile overflow,
+and production build passed. Live AWS account deployment remains pending.

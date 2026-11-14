@@ -756,3 +756,31 @@ footer button.text-button { font-size: 10px; color: #9daec4; }
 .lab-form .field-note { color:#526177; line-height:1.7; }
 .cloud-identifier { overflow-wrap:anywhere; font-size:11px; }
 .cloud-log { max-height:350px; overflow:auto; padding:20px; white-space:pre-wrap; overflow-wrap:anywhere; font-size:11px; line-height:1.7; }
+.nav-advanced { border:0; margin:16px 0 0; padding:0; }
+.nav-advanced summary { padding:11px 15px; color:#aab6c7; cursor:pointer; font-size:12px; }
+.nav-advanced a { margin:4px 0; }
+.aws-state { display:inline-flex; align-items:center; padding:6px 10px; border-radius:5px; background:#eef2f7; color:#526177; font-size:11px; }
+.aws-state.checked { background:#e7f5ee; color:#267454; }
+.aws-connection { display:flex; align-items:flex-start; gap:18px; padding:24px; }
+.aws-connection>svg { color:#3867dc; flex-shrink:0; }
+.aws-connection>div { flex:1; min-width:0; }
+.aws-connection p { margin:0; font-size:13px; color:#526177; line-height:1.8; }
+.aws-account { display:flex; flex-wrap:wrap; gap:30px; margin-top:18px; }
+.aws-account span { font-size:11px; color:#64748b; }
+.aws-account strong { display:block; margin-top:6px; color:#25354a; font-size:13px; }
+.aws-details>summary { cursor:pointer; font-size:14px; font-weight:600; padding:20px 24px; }
+.aws-details>summary span { float:right; font-weight:400; font-size:12px; color:#64748b; }
+.aws-setup-list { margin:15px 0; padding-left:20px; font-size:13px; }
+.aws-setup-list li { margin:18px 0; line-height:1.7; }
+.aws-setup-list code { display:block; background:#f3f6fa; padding:12px; margin:8px 0; overflow-wrap:anywhere; }
+.aws-setup-list p { color:#526177; }
+.aws-details td.cloud-identifier { max-width:320px; white-space:normal; }
+.sample-description,.sample-summary { font-size:12px; line-height:1.8; color:#526177; }
+.sample-summary { padding:14px 0; }
+.sample-summary code { color:#345382; overflow-wrap:anywhere; }
+.dataset-guide>.actions { margin-bottom:18px; }
+@media(max-width:700px) { .aws-connection { flex-wrap:wrap; padding:18px; } .aws-connection>button { margin-left:43px; } }
+.execution-more>summary { padding:20px 24px; font-size:13px; font-weight:600; cursor:pointer; }
+.execution-more>summary span { margin-left:12px; color:#64748b; font-size:11px; font-weight:400; }
+.execution-more-body { padding:0 18px 18px; }
+.create-layout { display:block; max-width:1000px; }

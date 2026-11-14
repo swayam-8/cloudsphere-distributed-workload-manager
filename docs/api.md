@@ -79,3 +79,10 @@ execution. Existing local artifacts must be re-uploaded into the current S3
 workspace. Cancellation intent is immediate, provider confirmation asynchronous.
 Manual retries wait for cancellation confirmation and receive a new task/job ID.
 See [Batch execution and recovery](aws-batch-demo.md).
+
+
+GET /api/cloud/overview returns safe configuration, the current process's last
+explicit core connection check and bounded persisted evidence from the recent 20
+Batch tasks. It makes no AWS calls. It is not an account-wide resource inventory
+or a current EC2-state check. No credential/profile values are returned. DynamoDB
+projection counts are scoped to the configured table and up to 100 recent events.

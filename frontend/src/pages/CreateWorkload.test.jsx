@@ -62,8 +62,8 @@ test('a failed task submission reuses the completed upload when retried',async()
 
 test('a practical sample explains its output and submits the corresponding cleaning rules',async()=>{
   open();expect(screen.getByText(/North: 2 orders, total 3,000/)).toBeInTheDocument();
-  const card=screen.getByRole('heading',{name:'Clean a messy dataset'}).closest('article');
-  fireEvent.click(card.querySelector('button'));
+  fireEvent.change(screen.getByLabelText(/Example dataset/),{target:{value:'quality'}});
+  fireEvent.click(screen.getByRole('button',{name:'Use sample'}));
   await screen.findByRole('columnheader',{name:'order_id'});
   fireEvent.click(screen.getByRole('button',{name:'Continue'}));
   expect(screen.getByLabelText(/Group rows by/)).toHaveValue('category');

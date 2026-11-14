@@ -218,6 +218,7 @@ test('demo allows local operator access without exposing worker credentials or t
   try{
     assert.equal((await (await fetch(`${base}/api/session`)).json()).requires_token,false);
     assert.equal((await request('/dashboard',undefined,'')).status,200);
+    const cloudOverview=await request('/cloud/overview',undefined,'');assert.equal(cloudOverview.status,200);assert.equal(cloudOverview.data.mode,'LOCAL');assert.equal(cloudOverview.data.enabled,false);
     assert.equal((await request('/tasks',{name:'Token-free demo job'},'')).status,201);
     assert.equal((await request('/worker/claim',{},'')).status,401);
     assert.equal((await request('/worker/register',{name:'unexpected',cpu:1,memory_mb:256},'')).status,401);

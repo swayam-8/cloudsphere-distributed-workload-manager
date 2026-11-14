@@ -115,6 +115,11 @@ The local database is individual-development-only and bound to loopback. Never
 expose it publicly. AWS containers do not contact the local API or MongoDB;
 they use a job role to read/write the intended S3 objects.
 
+Open **AWS workspace** from the primary sidebar to see setup status and recent
+cloud workloads. **AWS services & console links** contains the eight service links;
+**Verify AWS connection** checks core access in AWS mode without launching a job.
+Configuration, checked access and recorded execution evidence are distinct.
+
 Frontend demonstration:
 
 1. New workload → CSV processing → **Clean a messy dataset → Use sample**.
@@ -123,14 +128,14 @@ Frontend demonstration:
    if you want one execution attempt. Inspect the explicit cleaning options.
 4. Review and submit. Capacity startup may take several minutes.
 5. Open the workload's AWS Batch job link; match the exact job ID in the console.
-6. Inspect recorded image digest, EC2 instance and VPC/subnet observations, actual
+6. Expand **Cloud execution details** to inspect the recorded image digest, EC2 instance and VPC/subnet observations, actual
    CloudWatch container logs/available CPU observations, and DynamoDB audit trail.
 7. Download and extract the ZIP. Expect 7 input rows, 4 retained rows, Books sum
    10300, mean 2575 and one retained IQR outlier. Open report.html and aggregates.csv.
 
 The existing custom scheduling lab remains a worker-policy experiment, not a way
 to control AWS Batch's placement. It rejects Batch workloads as custom-policy
-sources. Use `npm run dev:all` for the original two-local-worker experiment path.
+sources. Use `npm run dev:all` and open **Advanced → Scheduling lab** for the original two-local-worker experiment path.
 Worker and Batch tasks are explicitly separated in the dispatcher.
 
 ## 5. Run live acceptance checks

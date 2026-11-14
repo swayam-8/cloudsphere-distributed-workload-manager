@@ -8,22 +8,17 @@ import { Badge, ButtonContent, DataView, date, Empty, ErrorBox, PageHeading, Pan
 const createLink=<Link className="button primary" to="/workloads/new"><Plus size={17}/> New workload</Link>;
 function Stat({ label, value, hint, icon:Icon, tone='' }) { return <div className={`stat ${tone}`}><div><span className="stat-label">{label}</span><Icon size={17}/></div><strong>{value}</strong><small>{hint}</small></div>; }
 export function Meter({ value=0, label }) { return <div className="meter"><div><span>{label}</span><strong>{value.toFixed(1)}%</strong></div><progress value={value} max={100} aria-label={label}/></div>; }
-function WorkerRow({ worker:w }) { return <Link className="worker-row" to={`/compute/${w.id}`}><span className="worker-symbol"><Server size={18}/></span><span><strong>{workerName(w.name)}</strong><small>{w.instance_id || w.name}</small></span><Badge value={w.state}/><ArrowUpRight size={15}/></Link>; }
+
 
 export function Overview() {
-  const query=useData('/dashboard'),workers=useData('/workers');
+  const query=useData('/dashboard');
   return <>
-    <PageHeading section="WORKSPACE" title="Overview" action={createLink}>Your workloads and compute, at a glance.</PageHeading>
+    <PageHeading section="WORKSPACE" title="Overview">Upload your data, follow processing and collect the results.</PageHeading>
     <DataView query={query}>{d=><>
       <div className="overview-toolbar"><span className="section-label">WORKLOAD ACTIVITY</span><RefreshTools query={query}/></div>
       <div className="stats"><Stat label="Running now" value={d.counts.RUNNING||0} icon={Activity} tone="blue" hint={`${d.counts.ASSIGNED||0} scheduled to start`}/><Stat label="In the queue" value={d.counts.QUEUED||0} icon={Clock3} hint="Waiting for available compute"/><Stat label="Completed" value={d.counts.COMPLETED||0} icon={CheckCircle2} tone="green" hint="Results ready to download"/><Stat label="Failed" value={d.counts.FAILED||0} icon={XCircle} hint="Open a workload to review the error"/></div>
       <section className="start-banner"><span className="start-banner-icon"><UploadCloud size={27}/></span><div><span className="section-label">START A NEW JOB</span><h2>Start a processing job.</h2><p>Upload a file, choose what to do with it, and follow the results.</p></div><Link className="button primary" to="/workloads/new">Upload & run <ArrowRight size={16}/></Link></section>
-      <div className="template-cards">{Object.entries(templates).map(([kind,t])=>{const Icon=t.icon;return <Link className="template-card" key={kind} to={`/workloads/new?type=${kind}`}><span className={`template-icon ${kind}`}><Icon size={20}/></span><div><h3>{kind==='csv'?'Process CSV data':kind==='images'?'Resize images':'Run a CPU benchmark'}</h3><p>{t.description}</p></div><ArrowUpRight size={17}/></Link>;})}</div>
-      <div className="dashboard-columns"><Panel title="Recent workloads" description={`${d.total} workload${d.total===1?'':'s'} submitted in this workspace`} extra={<Link className="inline-link" to="/workloads">View all <ArrowRight size={14}/></Link>}><TaskTable tasks={d.recent_tasks}/></Panel><Panel title="Compute availability" extra={<Link className="inline-link" to="/compute">Manage <ArrowUpRight size={14}/></Link>}>
-        <div className="fleet-total"><span className="worker-symbol"><Server size={21}/></span><strong>{d.healthy_workers}<small>workers online</small></strong><span className="muted">{d.offline_workers} offline</span></div>
-        {workers.error?<div className="panel-padding"><ErrorBox error={workers.error}/></div>:workers.data?.length ? <div>{[...workers.data].sort((a,b)=>(a.state!=='HEALTHY')-(b.state!=='HEALTHY')).slice(0,4).map(w=><WorkerRow key={w.id} worker={w}/>)}</div>:<Empty title="No workers connected" icon={Server}>Start a worker to make compute available. Submitted workloads will wait in the queue.</Empty>}
-        <div className="panel-footnote"><Info size={14}/><span>{d.mode==='LOCAL'?'Local workers share this computer. AWS is not connected.':'Worker availability comes from received heartbeats.'}</span></div>
-      </Panel></div>
+      <Panel title="Recent workloads" description={`${d.total} workload${d.total===1?'':'s'} submitted in this workspace`} extra={<Link className="inline-link" to="/workloads">View all <ArrowRight size={14}/></Link>}><TaskTable tasks={d.recent_tasks}/></Panel>
     </>}</DataView>
   </>;
 }

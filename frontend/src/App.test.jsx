@@ -24,14 +24,16 @@ test('a missing proxy route reports backend routing instead of blaming the token
   expect(sessionStorage.getItem('cloudsphere-token')).toBeNull();
 });
 
-test('authenticated empty overview shows observed zeroes and worker instructions', async () => {
+test('authenticated empty overview shows actual zeroes and a clear upload action', async () => {
   setToken('test-operator-token');
   vi.spyOn(globalThis, 'fetch').mockImplementation(async url => ({ ok: true, json: async () => url.endsWith('/dashboard') ? {
     total: 0, counts: {}, healthy_workers: 0, offline_workers: 0, recent_tasks: [], mode: 'LOCAL'
   } : url.endsWith('/workers') ? [] : { mode: 'LOCAL' } }));
   render(<App/>);
-  expect(await screen.findByText('No workers connected')).toBeInTheDocument();
-  expect(screen.getByText('Your first workload starts here')).toBeInTheDocument();
+  expect(await screen.findByRole('heading',{name:'Overview',exact:true})).toBeInTheDocument();
+  expect(screen.queryByRole('heading',{name:'Compute availability'})).not.toBeInTheDocument();
+  expect(screen.getByRole('link',{name:'AWS workspace'})).toHaveAttribute('href','/aws');
+  expect(await screen.findByText('Your first workload starts here')).toBeInTheDocument();
   expect(screen.getByText('Local environment')).toBeInTheDocument();
   expect(screen.getByRole('link',{name:'Upload & run'})).toHaveAttribute('href','/workloads/new');
   expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(4);

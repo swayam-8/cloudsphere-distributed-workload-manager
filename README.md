@@ -146,6 +146,20 @@ The local MongoDB instance is **unauthenticated and loopback-only**. It is for
 individual development. Use authenticated TLS MongoDB/Atlas with backups and
 private networking for a shared or AWS deployment.
 
+## Workspace navigation
+
+The primary sidebar contains **Overview**, **Workloads** and **AWS workspace**.
+Compute management, monitoring, scheduling experiments and settings are grouped
+under **Advanced**. The AWS page is visible in local mode too: it explains setup
+status and provides eight AWS Console links without pretending local jobs run
+in AWS. Its connection check is read-only and does not submit or provision jobs.
+
+Upload samples use one selector. Resource settings and execution logs are
+collapsed by default so the main flow stays focused on input, processing and
+results. Choose **Cloud execution details** on an AWS workload to inspect its
+image, observed EC2/VPC placement, CloudWatch data and DynamoDB audit. Those cloud
+queries run only while that section is open.
+
 ## Run actual workloads
 
 1. Choose **New workload** in the sidebar or **Upload & run** on Overview.

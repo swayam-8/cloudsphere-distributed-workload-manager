@@ -55,6 +55,7 @@ test('CSV upload is discoverable, previews data, runs the selected aggregation a
   await expect(page.getByText('Rows processed',{exact:true})).toBeVisible();
   await expect(page.locator('.result-stats').getByText('4',{exact:true})).toBeVisible();
   await expect(page.locator('.input-file').getByText('sales-demo.csv',{exact:true})).toBeVisible();
+  await page.locator('summary').filter({hasText:'Execution details'}).click();
   await expect(page.getByRole('heading',{name:'Scheduling decision inspector',exact:true})).toBeVisible();
   await page.screenshot({path:'../.local/results-redesigned.png',fullPage:true});
   expect(errors).toEqual([]);
@@ -62,7 +63,7 @@ test('CSV upload is discoverable, previews data, runs the selected aggregation a
 
 test('CPU benchmark requires no upload and mobile navigation stays within the viewport',async({page})=>{
   await login(page);
-  await page.getByRole('link',{name:/Run a CPU benchmark/}).click();
+  await page.goto('/workloads/new?type=cpu');
   await expect(page.getByRole('heading',{name:'No file upload needed'})).toBeVisible();
   await page.getByRole('button',{name:'Continue',exact:true}).click();
   await page.getByLabel(/Workload name/).fill('Browser prime benchmark');
@@ -87,7 +88,7 @@ test('CPU benchmark requires no upload and mobile navigation stays within the vi
 });
 
 test('image upload runs a real resize job with the configured output size',async({page})=>{
-  await login(page);await page.getByRole('link',{name:/Resize images/}).click();
+  await login(page);await page.goto('/workloads/new?type=images');
   await page.getByLabel('Upload image or ZIP file',{exact:true}).setInputFiles({name:'source-image.png',mimeType:'image/png',buffer:fs.readFileSync('../examples/sample.png')});
   await expect(page.getByRole('img',{name:'Preview of source-image.png'})).toBeVisible();
   await page.getByRole('button',{name:'Continue',exact:true}).click();
@@ -102,9 +103,8 @@ test('image upload runs a real resize job with the configured output size',async
 
 test('the documented messy sample produces actual quality statistics, grouped output and an explained download',async({page})=>{
   await login(page);await page.goto('/workloads/new');
-  await expect(page.getByRole('heading',{name:'Your CSV. A specific question. A usable result.'})).toBeVisible();
-  const card=page.locator('.dataset-examples article').filter({has:page.getByRole('heading',{name:'Clean a messy dataset'})});
-  await card.getByRole('button',{name:'Use sample'}).click();
+  await page.getByRole('combobox',{name:'Example dataset',exact:true}).selectOption('quality');
+  await page.getByRole('button',{name:'Use sample',exact:true}).click();
   await expect(page.getByRole('columnheader',{name:'order_id',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Continue',exact:true}).click();
   await expect(page.getByLabel('Remove exact duplicate rows')).toBeChecked();
@@ -123,7 +123,7 @@ test('the documented messy sample produces actual quality statistics, grouped ou
 
 test('scheduling lab executes two real policy batches and compares measured results',async({page})=>{
   test.setTimeout(150000);
-  await login(page);await page.getByRole('link',{name:'Scheduling lab',exact:true}).click();
+  await login(page);await page.locator('.nav-advanced > summary').click();await page.getByRole('link',{name:'Scheduling lab',exact:true}).click();
   for(const [algorithm,name] of [['round_robin','Browser RR trial'],['least_loaded','Browser LL trial']]) {
     await page.getByLabel('Experiment name',{exact:true}).fill(name);
     await page.getByLabel('Jobs in batch').fill('2');
@@ -143,4 +143,21 @@ test('scheduling lab executes two real policy batches and compares measured resu
   await expect(page.getByText(/Matching conditions do not control host background load/)).toBeVisible();
   await page.evaluate(()=>window.scrollTo(0,0));
   await page.screenshot({path:'../.local/scheduling-comparison.png',fullPage:true});
+});
+
+test('AWS status remains discoverable in local mode while service details stay collapsed',async({page})=>{
+  await login(page);
+  await expect(page.locator('.nav-advanced')).not.toHaveAttribute('open','');
+  await page.getByRole('link',{name:'AWS workspace',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'AWS is not active in this launch',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Verify AWS connection'})).toBeDisabled();
+  await expect(page.getByRole('heading',{name:'No AWS workloads yet'})).toBeVisible();
+  const services=page.locator('.aws-details').filter({has:page.locator('summary').filter({hasText:'AWS services & console links'})});
+  await expect(services).not.toHaveAttribute('open','');
+  await services.locator('summary').click();
+  await expect(services.getByRole('link',{name:/^Open .* console$/})).toHaveCount(8);
+  await expect(services.getByRole('link',{name:'Open AWS Batch console'})).toHaveAttribute('href',/eu-north-1/);
+  await page.screenshot({path:'../.local/aws-workspace-simplified.png',fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
