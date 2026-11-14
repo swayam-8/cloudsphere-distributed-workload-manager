@@ -92,6 +92,7 @@ test('image resize options are visible before upload and persist into the submit
   URL.createObjectURL=vi.fn(()=> 'blob:image-preview');URL.revokeObjectURL=vi.fn();
   try {
     open();fireEvent.click(screen.getByRole('button',{name:/Image processing/}));
+    fireEvent.change(screen.getByLabelText('Image operation'),{target:{value:'thumbnail'}});
     expect(screen.getByText('Resize images into thumbnails')).toBeInTheDocument();
     expect(screen.getByText(/downloadable ZIP with PNG thumbnails/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/Maximum thumbnail size/),{target:{value:'128'}});
@@ -110,4 +111,20 @@ test('image resize options are visible before upload and persist into the submit
     const call=api.mock.calls.find(([path,options])=>path==='/tasks'&&options?.method==='POST');
     expect(JSON.parse(call[1].body)).toMatchObject({kind:'images',parameters:{width:128}});
   } finally {URL.createObjectURL=originalCreate;URL.revokeObjectURL=originalRevoke;}
+});
+
+test('compression is the default image operation and submits the selected quality',async()=>{
+  open();fireEvent.click(screen.getByRole('button',{name:/Image processing/}));
+  expect(screen.getByLabelText('Image operation')).toHaveValue('compress');
+  expect(screen.getByText(/If compression makes a file larger/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText(/Compression quality/),{target:{value:'60'}});
+  fireEvent.change(screen.getByLabelText('Upload image or ZIP file'),{target:{files:[new File(['image'],'small.png',{type:'image/png'})]}});
+  fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+  expect(screen.getByLabelText(/Compression quality/)).toHaveValue('60');
+  fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+  expect(screen.getByText('Compress images · quality 60 · keep dimensions')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Submit workload'}));
+  await screen.findByText('Submitted workload details');
+  const call=api.mock.calls.find(([path,options])=>path==='/tasks'&&options?.method==='POST');
+  expect(JSON.parse(call[1].body).parameters).toMatchObject({operation:'compress',quality:60});
 });

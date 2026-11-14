@@ -82,3 +82,22 @@ than analysing a user's document.
 Scheduling lab: submit a bounded real job batch, repeat under a different policy,
 and compare persisted timings, assignments and retries. See
 [experiment methodology](experiment-methodology.md).
+
+### Image compression
+
+New image workloads default to compression, preserving the original pixel dimensions.
+Choose quality 60 (smaller file), 80 (balanced), or 95 (higher quality), or switch to
+thumbnail resizing. Compression produces JPEGs; transparency is composited on white.
+If encoding would increase file size, the original bytes and format are retained.
+Savings depend on the input and can be zero. The output ZIP includes result.json
+with per-image byte counts, filenames and dimensions, plus total size savings.
+PNG/JPEG files and ZIPs share the same existing image-count and size limits.
+
+For AWS, pull the code, stop the demo when no jobs are active, and run
+`npm run aws:deploy -- --profile cloudsphere --apply` using the authorized deployment
+profile before restarting `npm run dev:aws`. This publishes the updated processor
+and records its approved image digest. A frontend restart alone does not update AWS
+job code. Existing thumbnail jobs remain compatible.
+
+Processor checks: `python tests/image_compression_test.py` (requires Pillow).
+Schema checks: `node --test tests/image-schema.test.mjs`.

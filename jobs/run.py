@@ -34,11 +34,33 @@ def images(parameters, source, output):
         with Image.open(io.BytesIO(data)) as image:
             if image.width * image.height > 16000000:
                 raise ValueError("Image exceeds 16 megapixels")
-            image = ImageOps.exif_transpose(image).convert("RGB")
-            image.thumbnail((parameters["width"], parameters["width"]))
-            target = f"thumbnail-{len(manifest) + 1:03}.png"
-            image.save(output / target)
-            manifest.append({"input": Path(name).name, "output": target, "width": image.width, "height": image.height})
+            original_format = image.format
+            image = ImageOps.exif_transpose(image)
+            operation = parameters.get("operation", "thumbnail")
+            if operation == "compress":
+                # JPEG has no alpha channel: composite transparent inputs on white.
+                rgba = image.convert("RGBA")
+                image = Image.new("RGB", rgba.size, "white")
+                image.paste(rgba, mask=rgba.getchannel("A"))
+                encoded = io.BytesIO()
+                image.save(encoded, format="JPEG", quality=parameters.get("quality", 80), optimize=True)
+                payload = encoded.getvalue()
+                kept_original = len(payload) >= len(data)
+                if kept_original:
+                    payload = data
+                extension = ("png" if original_format == "PNG" else "jpg") if kept_original else "jpg"
+                target = f"compressed-{len(manifest) + 1:03}.{extension}"
+                (output / target).write_bytes(payload)
+            else:
+                image = image.convert("RGB")
+                image.thumbnail((parameters["width"], parameters["width"]))
+                target = f"thumbnail-{len(manifest) + 1:03}.png"
+                image.save(output / target)
+                payload = (output / target).read_bytes()
+                kept_original = False
+            manifest.append({"input": Path(name).name, "output": target, "width": image.width, "height": image.height,
+                             "input_bytes": len(data), "output_bytes": len(payload),
+                             "saved_bytes": len(data) - len(payload), "kept_original": kept_original})
 
     if source.suffix == ".zip":
         with zipfile.ZipFile(source) as archive:
@@ -54,7 +76,12 @@ def images(parameters, source, output):
         convert(source.read_bytes(), source.name)
     if not manifest:
         raise ValueError("No images found")
-    return {"image_count": len(manifest), "images": manifest}
+    input_bytes = sum(item["input_bytes"] for item in manifest)
+    output_bytes = sum(item["output_bytes"] for item in manifest)
+    return {"image_count": len(manifest), "images": manifest, "operation": parameters.get("operation", "thumbnail"),
+            "input_bytes": input_bytes, "output_bytes": output_bytes,
+            "saved_bytes": input_bytes - output_bytes,
+            "saved_percent": round(100 * (input_bytes - output_bytes) / input_bytes, 1)}
 
 
 def main():

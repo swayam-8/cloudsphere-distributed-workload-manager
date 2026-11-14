@@ -7,7 +7,7 @@ import { previewCSV, validateFile } from '../lib/files';
 import DatasetGuide from '../components/DatasetGuide';
 import { datasets, csvRules } from '../lib/datasets';
 
-const defaults={name:'',cpu:'1',memory:'256',priority:'1',timeout:'180',retries:'2',provider:'workers',group:'',value:'',width:'256',limit:'100000'};
+const defaults={name:'',cpu:'1',memory:'256',priority:'1',timeout:'180',retries:'2',provider:'workers',group:'',value:'',operation:'compress',quality:'80',width:'256',limit:'100000'};
 
 export default function CreateWorkload({ notify }) {
   const [search,setSearch]=useSearchParams();
@@ -62,7 +62,7 @@ export default function CreateWorkload({ notify }) {
         }
       }
       setPhase('submit');
-      const parameters=kind==='csv'?{group_by:values.group,value_column:values.value,...rules}:kind==='images'?{width:Number(values.width)}:{limit:Number(values.limit)};
+      const parameters=kind==='csv'?{group_by:values.group,value_column:values.value,...rules}:kind==='images'?{operation:values.operation,quality:Number(values.quality),width:Number(values.width)}:{limit:Number(values.limit)};
       const task=await api('/tasks',{method:'POST',signal:controller.current.signal,body:JSON.stringify({name:values.name.trim(),execution_provider:values.provider,kind,parameters,input_id:inputId,cpu:Number(values.cpu),memory_mb:Number(values.memory),priority:Number(values.priority),timeout_seconds:Number(values.timeout),max_retries:Number(values.retries)})});
       if(mounted.current){notify('Workload submitted. You can follow its progress here.');navigate(`/workloads/${task.id}`);}
     } catch(e){if(mounted.current && e.name!=='AbortError')setError(e.message);}
@@ -78,7 +78,15 @@ export default function CreateWorkload({ notify }) {
   const available=online.filter(w=>w.cpu-w.reserved.cpu>=Number(values.cpu) && w.memory_mb-w.reserved.memory_mb>=Number(values.memory) && w.reserved.jobs<w.max_parallel).length;
   const template=templates[kind];
   const scale=imageSize?Math.min(1,Number(values.width)/imageSize.width,Number(values.width)/imageSize.height):null;
+  const compression=values.operation==='compress';
   const imageOptions=<div className="form-section">
+    <label>Image operation<select {...field('operation')}><option value="compress">Compress images — keep dimensions</option><option value="thumbnail">Resize into thumbnails</option></select></label>
+    {compression ? <>
+      <h3>Compress images without resizing</h3>
+      <p>Reduce file size while keeping the original dimensions. Small images are not enlarged.</p>
+      <label>Compression quality<select {...field('quality')}><option value="60">Smaller file — quality 60</option><option value="80">Balanced — quality 80</option><option value="95">Higher quality — quality 95</option></select><small>Lower quality can reduce detail. Actual savings depend on the image.</small></label>
+      <div className="output-explainer"><strong>What you will get</strong><p>A ZIP of compressed JPEG images and result.json with original sizes, output sizes and savings. If compression makes a file larger, we keep the original file instead.</p><p>JPEG output uses a white background for transparency. The original upload is preserved.</p>{imageSize && <p>Output dimensions: {imageSize.width} × {imageSize.height} pixels (unchanged).</p>}</div>
+    </> : <>
     <h3>Resize images into thumbnails</h3>
     <p>Choose a maximum size. Each image keeps its proportions and fits inside this square without stretching or enlarging.</p>
     <label>Maximum thumbnail size<select name="width" {...field('width')}>{[64,128,256,512,1024,2048].map(n=><option value={n} key={n}>{n} × {n} pixels</option>)}</select><small>256 × 256 pixels by default. The same limit applies to every image in a ZIP.</small></label>
@@ -88,6 +96,7 @@ export default function CreateWorkload({ notify }) {
       {file?.name.toLowerCase().endsWith('.zip') && <p>Individual image previews are unavailable for ZIP uploads. Each image is resized separately.</p>}
       <strong>What you will get</strong><p>A downloadable ZIP with PNG thumbnails and result.json listing each input, output filename and final dimensions. Your original upload is preserved.</p>
     </div>
+    </>}
   </div>;
 
   return <>
@@ -100,7 +109,7 @@ export default function CreateWorkload({ notify }) {
         <fieldset disabled={busy}>
           {step===0 && <div className="step-body">
             <div className="step-intro"><span className="section-number">01</span><div><h2>Choose a workload</h2><p>Start with the kind of data you want to process.</p></div></div>
-            <div className="template-choices">{Object.entries(templates).map(([key,t])=>{const Icon=t.icon;return <button type="button" key={key} aria-pressed={kind===key} className={`template-choice ${kind===key?'selected':''}`} onClick={()=>chooseKind(key)}><Icon size={21}/><strong>{t.short}</strong><small>{key==='csv'?'.csv files':key==='images'?'Resize PNG/JPEG images or a ZIP into thumbnails':'No file required'}</small><span className="radio-mark">{kind===key && <i/>}</span></button>;})}</div>
+            <div className="template-choices">{Object.entries(templates).map(([key,t])=>{const Icon=t.icon;return <button type="button" key={key} aria-pressed={kind===key} className={`template-choice ${kind===key?'selected':''}`} onClick={()=>chooseKind(key)}><Icon size={21}/><strong>{t.short}</strong><small>{key==='csv'?'.csv files':key==='images'?'Compress PNG/JPEG images or a ZIP':'No file required'}</small><span className="radio-mark">{kind===key && <i/>}</span></button>;})}</div>
             {kind!=='cpu' ? <>
               <div className="field-heading"><h3>Upload your {kind==='csv'?'CSV file':'images'}</h3><span>Maximum 10 MB</span></div>
               <input ref={input} tabIndex={-1} className="sr-only" id="workload-file" type="file" accept={template.accepts} aria-label={kind==='csv'?'Upload CSV file':'Upload image or ZIP file'} onChange={e=>{if(e.target.files?.[0])chooseFile(e.target.files[0]);e.target.value='';}}/>
@@ -109,7 +118,7 @@ export default function CreateWorkload({ notify }) {
               </div> : <div className="selected-file"><JobIcon kind={kind}/><div><strong>{file.name}</strong><small>{bytes(file.size)} · Ready to upload</small></div><CheckCircle2 size={18} className="success-text"/><button type="button" className="icon-button" aria-label="Remove selected file" onClick={()=>{setFile(null);setUploaded(null);}}><X size={17}/></button></div>}
               {preview && <div className="preview"><div className="preview-heading"><span><FileSpreadsheet size={15}/> Data preview</span><small>{preview.headers.length} columns · first {preview.rows.length} rows</small></div><div className="table-wrap"><table><thead><tr>{preview.headers.map((h,i)=><th key={i}>{h || '(empty header)'}</th>)}</tr></thead><tbody>{preview.rows.map((row,index)=><tr key={index}>{row.map((cell,i)=><td key={i} title={cell}>{cell || '—'}</td>)}</tr>)}</tbody></table></div></div>}
               {previewError && <p className="field-note"><Info size={15}/> Preview unavailable: {previewError}</p>}
-              {imageUrl && <div className="image-preview"><img src={imageUrl} alt={`Preview of ${file.name}`} onLoad={e=>setImageSize({width:e.currentTarget.naturalWidth,height:e.currentTarget.naturalHeight})}/><div><strong>Original image</strong><p>Aspect ratio will be preserved. Your original file stays unchanged.</p></div></div>}
+              {imageUrl && <div className="image-preview"><img src={imageUrl} alt={`Preview of ${file.name}`} onLoad={e=>setImageSize({width:e.currentTarget.naturalWidth,height:e.currentTarget.naturalHeight})}/><div><strong>Original image</strong><p>Your original upload is preserved. Choose compression or resizing below.</p></div></div>}
 
               {kind==='images' && imageOptions}
               {kind==='csv' && <DatasetGuide onUse={useSample}/>}
@@ -131,7 +140,7 @@ export default function CreateWorkload({ notify }) {
           {step===2 && <div className="step-body">
             <div className="step-intro"><span className="section-number">03</span><div><h2>Ready to submit</h2><p>Check your input and processing settings before your job is queued.</p></div></div>
             <div className="review-title"><JobIcon kind={kind}/><div><h3>{values.name}</h3><span>{template.name}</span></div><button type="button" className="text-button" onClick={()=>setStep(1)}>Edit settings</button></div>
-            <dl className="review-list"><div><dt>Input</dt><dd>{file ? <><span>{file.name}</span><small>{bytes(file.size)}</small></> : 'No file — generated computation'}</dd></div><div><dt>Processing</dt><dd>{kind==='csv'?`${values.group?`Group by ${values.group}`:'All rows'} · ${values.value?`Sum ${values.value}`:'Count rows'}`:kind==='images'?`Create thumbnails up to ${values.width} × ${values.width} px`:`Find primes from 2 to ${Number(values.limit).toLocaleString()}`}</dd></div>{kind==='csv'&&<div><dt>Cleaning rules</dt><dd>{[['trim_whitespace','Trim spaces'],['deduplicate','Remove duplicates'],['drop_missing','Remove incomplete rows'],['detect_outliers','Flag IQR outliers']].filter(([k])=>rules[k]).map(([,label])=>label).join(' · ')||'Keep values unchanged'}<small>Invalid numeric values: {rules.invalid_numeric==='skip'?'skip rows and report count':'fail validation'}. Outlier detection never removes rows.</small></dd></div>}<div><dt>Execution provider</dt><dd>{values.provider==='aws_batch'?'AWS Batch — managed execution':'CloudSphere workers'}</dd></div><div><dt>Resources</dt><dd>{values.cpu} vCPU · {values.memory} MB memory</dd></div><div><dt>Priority & time limit</dt><dd>{['Low','Normal','High'][Number(values.priority)]} · {values.timeout} seconds</dd></div><div><dt>Output</dt><dd>{template.output}<small>Downloadable as a ZIP when processing completes.</small></dd></div></dl>
+            <dl className="review-list"><div><dt>Input</dt><dd>{file ? <><span>{file.name}</span><small>{bytes(file.size)}</small></> : 'No file — generated computation'}</dd></div><div><dt>Processing</dt><dd>{kind==='csv'?`${values.group?`Group by ${values.group}`:'All rows'} · ${values.value?`Sum ${values.value}`:'Count rows'}`:kind==='images'?(compression?`Compress images · quality ${values.quality} · keep dimensions`:`Create thumbnails up to ${values.width} × ${values.width} px`):`Find primes from 2 to ${Number(values.limit).toLocaleString()}`}</dd></div>{kind==='csv'&&<div><dt>Cleaning rules</dt><dd>{[['trim_whitespace','Trim spaces'],['deduplicate','Remove duplicates'],['drop_missing','Remove incomplete rows'],['detect_outliers','Flag IQR outliers']].filter(([k])=>rules[k]).map(([,label])=>label).join(' · ')||'Keep values unchanged'}<small>Invalid numeric values: {rules.invalid_numeric==='skip'?'skip rows and report count':'fail validation'}. Outlier detection never removes rows.</small></dd></div>}<div><dt>Execution provider</dt><dd>{values.provider==='aws_batch'?'AWS Batch — managed execution':'CloudSphere workers'}</dd></div><div><dt>Resources</dt><dd>{values.cpu} vCPU · {values.memory} MB memory</dd></div><div><dt>Priority & time limit</dt><dd>{['Low','Normal','High'][Number(values.priority)]} · {values.timeout} seconds</dd></div><div><dt>Output</dt><dd>{kind==='images'&&compression?'Compressed images and size savings report':template.output}<small>Downloadable as a ZIP when processing completes.</small></dd></div></dl>
             <div className="notice"><Info size={17}/><p>{values.provider==='aws_batch'?'Your job will be submitted to AWS Batch. Cloud compute may take several minutes to start.':available ? 'Your job will be queued and assigned to an available worker.' : 'Your job will wait in the queue until a worker has enough free capacity.'} You can follow its progress on the next page.</p></div>
             {busy && <div className="upload-progress" role="status"><div><LoaderCircle size={15} className="spin"/><strong>{phase==='upload'?(progress===100?'Saving your uploaded file…':`Uploading ${file?.name}…`):'Adding your workload to the queue…'}</strong>{phase==='upload' && <span>{progress}%</span>}</div>{phase==='upload' && <progress max={100} value={progress}/>}</div>}
           </div>}
